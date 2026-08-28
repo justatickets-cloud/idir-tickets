@@ -94,6 +94,20 @@ function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+/* ---- עוזרי תאריך בצד השרת (לפי אזור זמן ישראל, חסין DST) ---- */
+function pad2(n) { return String(n).padStart(2, '0'); }
+function ymdStr(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function addDays(base, n) { const x = new Date(base); x.setDate(x.getDate() + n); return x; }
+
+// "היום" לפי שעון ישראל, כתאריך מקומי לצורך חישובים
+function israelToday() {
+  const s = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 /* --------------------------- טעינת הנתונים ----------------------------- */
 // תיקון תווים משובשים מהפיד (אותיות קיריליות שהוחלפו במקף/מרכאות) + ניקוי רווחים
 function fixText(v) {
@@ -217,6 +231,15 @@ function siteFooter() {
       </ul>
     </div>
 
+  </div>
+
+  <div class="wrap footer-timing">
+    <span class="footer-timing-label">לפי מועד:</span>
+    <a href="/הופעות-היום.html">הופעות היום</a>
+    <a href="/הופעות-בסוף-השבוע.html">הופעות בסוף השבוע</a>
+    <a href="/הופעות-השבוע.html">הופעות השבוע</a>
+    <a href="/הופעות-החודש.html">הופעות החודש</a>
+    <a href="/הופעות-2026.html">הופעות 2026</a>
   </div>
 
   <div class="footer-bottom wrap">
@@ -381,6 +404,137 @@ function buildStaticPages() {
 <p>נשמח לקבל פניות, הצעות ובירורים. ניתן ליצור עמנו קשר בדואר אלקטרוני:</p>
 <p><a href="mailto:contact@idir.co.il">contact@idir.co.il</a></p>
 <p>נעשה מאמץ לחזור לכל פנייה בהקדם.</p>`);
+}
+
+/* ------------------- עמודי נחיתה מבוססי עיתוי (Hub SEO) ---------------- */
+const TLV = 'תל אביב-יפו';
+const HUB_PAGES = [
+  {
+    slug: 'הופעות-היום', when: 'today',
+    title: 'הופעות היום בישראל | כרטיסים להופעות והצגות היום - איידיר כרטיסים',
+    desc: 'כל ההופעות, ההצגות והמופעים שמתקיימים היום בישראל במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
+    h1: 'הופעות ואירועים להיום',
+    intro: 'ריכזנו עבורכם את כל המופעים, ההצגות והקונצרטים שמתקיימים היום ברחבי הארץ. בחרו אירוע ורכשו כרטיסים בקלות.',
+  },
+  {
+    slug: 'הופעות-בסוף-השבוע', when: 'weekend',
+    title: 'הופעות בסוף השבוע הקרוב | כרטיסים לסופ"ש - איידיר כרטיסים',
+    desc: 'מה עושים בסוף השבוע? כל ההופעות וההצגות לימי חמישי, שישי ושבת הקרובים, עם מועדים ומחירים מעודכנים.',
+    h1: 'הופעות והצגות בסוף השבוע הקרוב',
+    intro: 'כל המופעים והאירועים המתקיימים בסוף השבוע הקרוב, בימים חמישי, שישי ושבת. מצאו את הבילוי המושלם לסופ"ש.',
+  },
+  {
+    slug: 'הופעות-השבוע', when: 'next-7',
+    title: 'הופעות השבוע בישראל | לוח אירועים לשבוע הקרוב - איידיר כרטיסים',
+    desc: 'לוח האירועים המלא לשבוע הקרוב: הופעות, הצגות וקונצרטים בשבעת הימים הבאים ברחבי ישראל.',
+    h1: 'הופעות ואירועים לשבוע הקרוב',
+    intro: 'כל המופעים המתקיימים בשבעת הימים הקרובים. תכננו מראש ורכשו כרטיסים לאירועים הקרובים ביותר.',
+  },
+  {
+    slug: 'הופעות-החודש', when: 'this-month',
+    title: 'הופעות החודש | כרטיסים למופעים בחודש הקרוב - איידיר כרטיסים',
+    desc: 'כל ההופעות וההצגות המתקיימות בחודש הקרוב בישראל, עם מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
+    h1: 'הופעות והצגות לחודש הקרוב',
+    intro: 'לוח המופעים המלא לשלושים הימים הקרובים. מגוון רחב של הופעות, הצגות וקונצרטים ברחבי הארץ.',
+  },
+  {
+    slug: 'הופעות-2026', when: 'year-2026',
+    title: 'הופעות 2026 בישראל | לוח מופעים, הצגות וקונצרטים 2026 - איידיר כרטיסים',
+    desc: 'לוח המופעים המלא לשנת 2026: הופעות, הצגות, קונצרטים ואירועי תרבות ברחבי ישראל, מעודכן בזמן אמת.',
+    h1: 'לוח הופעות ואירועים לשנת 2026',
+    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בשנת 2026 ברחבי ישראל. לוח אירועים מקיף שמתעדכן באופן שוטף.',
+  },
+  {
+    slug: 'הופעות-בתל-אביב-היום', when: 'today', city: TLV,
+    title: 'הופעות בתל אביב היום | כרטיסים למופעים היום בתל אביב - איידיר כרטיסים',
+    desc: 'כל ההופעות וההצגות שמתקיימות היום בתל אביב יפו. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
+    h1: 'הופעות ואירועים היום בתל אביב',
+    intro: 'המופעים והאירועים שמתקיימים היום בתל אביב יפו. מצאו את הבילוי המושלם בעיר שלא נחה לרגע.',
+  },
+  {
+    slug: 'הופעות-בתל-אביב-בסוף-השבוע', when: 'weekend', city: TLV,
+    title: 'הופעות בתל אביב בסוף השבוע | כרטיסים לסופ"ש בתל אביב - איידיר כרטיסים',
+    desc: 'כל ההופעות וההצגות בתל אביב לסוף השבוע הקרוב, לימי חמישי, שישי ושבת. מועדים וכרטיסים מעודכנים.',
+    h1: 'הופעות והצגות בתל אביב בסוף השבוע',
+    intro: 'כל המופעים המתקיימים בתל אביב יפו בסוף השבוע הקרוב. הבילוי המושלם לסופ"ש בעיר.',
+  },
+];
+
+function breadcrumbSchema(items) {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem', position: i + 1, name: it.name, item: it.url,
+    })),
+  };
+  return `<script type="application/ld+json">${JSON.stringify(data)}</script>`;
+}
+
+function hubEmpty() {
+  return `<div class="hub-empty">
+    <p>אין כרגע מופעים זמינים בקטגוריה זו. מומלץ לבדוק שוב בקרוב, או לעיין באפשרויות הבאות:</p>
+    <ul class="hub-empty-links">
+      <li><a href="/">כל המופעים</a></li>
+      <li><a href="/הופעות-השבוע.html">הופעות השבוע</a></li>
+      <li><a href="/הופעות-החודש.html">הופעות החודש</a></li>
+      <li><a href="/הופעות-2026.html">כל מופעי 2026</a></li>
+    </ul>
+  </div>`;
+}
+
+function buildHubPages(shows) {
+  const now = israelToday();
+  const todayStr = ymdStr(now);
+  const plus6 = ymdStr(addDays(now, 6));
+  const plus29 = ymdStr(addDays(now, 29));
+  const day = now.getDay(); // 0=ראשון .. 6=שבת
+  const toThu = (day >= 4) ? -(day - 4) : (4 - day);
+  const thu = addDays(now, toThu);
+  const weekend = new Set([ymdStr(thu), ymdStr(addDays(thu, 1)), ymdStr(addDays(thu, 2))]);
+
+  function matchWhen(dateStr, when) {
+    switch (when) {
+      case 'today': return dateStr === todayStr;
+      case 'weekend': return weekend.has(dateStr);
+      case 'next-7': return dateStr >= todayStr && dateStr <= plus6;
+      case 'this-month': return dateStr >= todayStr && dateStr <= plus29;
+      case 'year-2026': return dateStr.slice(0, 4) === '2026';
+      default: return false;
+    }
+  }
+
+  const results = {};
+  HUB_PAGES.forEach(cfg => {
+    const matched = shows.filter(show =>
+      (show.Seances || []).some(s =>
+        (!cfg.city || s.city === cfg.city) && matchWhen(s.date, cfg.when)));
+
+    const canonical = `${BRAND.domain}/${cfg.slug}.html`;
+    const crumb = breadcrumbSchema([
+      { name: 'בית', url: BRAND.domain + '/' },
+      { name: cfg.h1, url: canonical },
+    ]);
+    const cards = matched.map(showCard).join('\n');
+
+    const body = `
+<article class="hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">${escText(cfg.h1)}</span></nav>
+    <h1 class="hub-title">${escText(cfg.h1)}</h1>
+    <p class="hub-intro">${escText(cfg.intro)}</p>
+    <div class="results-head">
+      <span class="results-count">${matched.length} מופעים</span>
+    </div>
+    ${matched.length ? `<div class="grid">\n${cards}\n</div>` : hubEmpty()}
+  </div>
+</article>`;
+
+    const html = page({ title: cfg.title, description: cfg.desc, canonical, head: crumb, body });
+    fs.writeFileSync(path.join(BRAND.outDir, `${cfg.slug}.html`), html, 'utf8');
+    results[cfg.slug] = matched.length;
+  });
+  return results;
 }
 
 /* ------------------------------ דף הבית -------------------------------- */
@@ -653,6 +807,7 @@ function buildSitemap(shows) {
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
     { loc: BRAND.domain + '/', pri: '1.0' },
+    ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
     ...shows.map(s => ({ loc: `${BRAND.domain}/shows/${s.id}.html`, pri: '0.8' })),
     ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
@@ -848,6 +1003,25 @@ img{max-width:100%;display:block}
 .footer-legal-links{font-size:13px;color:#8b8199;display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center}
 .footer-legal-links a{color:#cfc7d6;font-weight:600}
 .footer-legal-links a:hover{color:var(--gold)}
+
+/* footer timing links row */
+.footer-timing{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;
+  margin-top:30px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1)}
+.footer-timing-label{color:#8b8199;font-weight:700;font-size:13px}
+.footer-timing a{color:#cfc7d6;font-size:14px;font-weight:600}
+.footer-timing a:hover{color:var(--gold)}
+
+/* hub (timing) landing pages */
+.hub{padding-block:6px 50px}
+.hub .breadcrumb{padding-block:18px 2px}
+.hub-title{font-size:clamp(26px,4vw,38px);font-weight:800;margin:8px 0 10px;line-height:1.2}
+.hub-intro{color:var(--muted);font-size:17px;max-width:760px;margin:0 0 22px;line-height:1.7}
+.hub .results-head{margin-bottom:18px}
+.hub-empty{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:28px;box-shadow:var(--shadow-sm);text-align:center;color:var(--muted)}
+.hub-empty p{margin:0 0 16px;font-size:17px}
+.hub-empty-links{list-style:none;margin:0;padding:0;display:flex;gap:10px 18px;flex-wrap:wrap;justify-content:center}
+.hub-empty-links a{color:var(--plum);font-weight:700;text-decoration:underline}
 
 /* static / legal pages */
 .static{padding-block:6px 46px}
@@ -1149,6 +1323,7 @@ function run() {
   shows.forEach(buildShow);
   buildIndex(shows);
   buildStaticPages();
+  const hubCounts = buildHubPages(shows);
   buildSitemap(shows);
   buildAdsTxt();
 
@@ -1160,13 +1335,15 @@ function run() {
   console.log(`  - dist/shows/*.html  (${shows.length} דפי מופע)`);
   console.log(`  - dist/data/search-index.json  (${shows.length} רשומות)`);
   console.log('  - dist/privacy.html, terms.html, contact.html  (עמודי תשתית)');
-  console.log(`  - dist/sitemap.xml  (${shows.length + 1 + STATIC_SLUGS.length} כתובות)`);
+  console.log(`  - dist/[עמודי עיתוי SEO]  (${HUB_PAGES.length}):`);
+  HUB_PAGES.forEach(p => console.log(`      ${p.slug}  (${hubCounts[p.slug]} מופעים)`));
+  console.log(`  - dist/sitemap.xml  (${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length} כתובות)`);
   console.log('  - dist/robots.txt, dist/ads.txt');
   console.log('  - dist/assets/styles.css, app.js, accessibility.js');
   console.log('────────────────────────────────────────');
   console.log(`  מופעים:   ${shows.length}`);
   console.log(`  מועדים:   ${totalSeances}`);
-  console.log(`  סה"כ דפי HTML: ${shows.length + 1 + STATIC_SLUGS.length}`);
+  console.log(`  סה"כ דפי HTML: ${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length}`);
   console.log(`  זמן ריצה: ${secs} שניות`);
   console.log('✓ הבנייה המלאה הושלמה.');
 }
