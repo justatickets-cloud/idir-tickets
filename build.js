@@ -20,6 +20,8 @@ const BRAND = {
   outDir: path.join(__dirname, 'dist'),
   dataFile: path.join(__dirname, 'shows.json'),
   limit: 0, // 0 = כל המופעים ; מספר חיובי = מגבלה (למשל 10 לפיילוט)
+  adsenseClient: 'ca-pub-0718695615942520',
+  adsTxt: 'google.com, pub-0718695615942520, DIRECT, f08c47fec0942fa0',
 };
 
 /* ------------------------------ עזרי טקסט ------------------------------- */
@@ -138,6 +140,7 @@ function page({ title, description, canonical, head = '', body }) {
 <meta property="og:url" content="${esc(canonical)}">
 <meta property="og:site_name" content="${esc(BRAND.nameHe)}">
 <meta name="theme-color" content="#6d1f4b">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${BRAND.adsenseClient}" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&family=Assistant:wght@400;600;700&display=swap">
@@ -574,6 +577,11 @@ Allow: /
 Sitemap: ${BRAND.domain}/sitemap.xml
 `;
   fs.writeFileSync(path.join(BRAND.outDir, 'robots.txt'), robots, 'utf8');
+}
+
+/* ------------------------------ ads.txt (AdSense) --------------------- */
+function buildAdsTxt() {
+  fs.writeFileSync(path.join(BRAND.outDir, 'ads.txt'), BRAND.adsTxt + '\n', 'utf8');
 }
 
 /* ------------------------------ נכסים (CSS/JS) ------------------------- */
@@ -1032,6 +1040,7 @@ function run() {
   shows.forEach(buildShow);
   buildIndex(shows);
   buildSitemap(shows);
+  buildAdsTxt();
 
   const totalSeances = shows.reduce((n, s) => n + ((s.Seances || []).length), 0);
   const secs = ((Date.now() - t0) / 1000).toFixed(2);
@@ -1041,7 +1050,7 @@ function run() {
   console.log(`  - dist/shows/*.html  (${shows.length} דפי מופע)`);
   console.log(`  - dist/data/search-index.json  (${shows.length} רשומות)`);
   console.log(`  - dist/sitemap.xml  (${shows.length + 1} כתובות)`);
-  console.log('  - dist/robots.txt');
+  console.log('  - dist/robots.txt, dist/ads.txt');
   console.log('  - dist/assets/styles.css, app.js, accessibility.js');
   console.log('────────────────────────────────────────');
   console.log(`  מופעים:   ${shows.length}`);
