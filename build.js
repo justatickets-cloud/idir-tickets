@@ -221,6 +221,11 @@ function siteFooter() {
 
   <div class="footer-bottom wrap">
     <div class="foot-copy">© ${year} ${escText(BRAND.nameHe)} (idir.co.il). כל הזכויות שמורות.</div>
+    <div class="footer-legal-links">
+      <a href="/privacy.html">מדיניות פרטיות</a> ·
+      <a href="/terms.html">תנאי שימוש</a> ·
+      <a href="/contact.html">יצירת קשר</a>
+    </div>
     <div class="foot-disclaimer">רכישת כרטיסים | המידע, לוחות המועדים והכרטיסים מתעדכנים באופן שוטף.</div>
   </div>
 </footer>`;
@@ -286,6 +291,96 @@ function showCard(show) {
       </div>
     </div>
   </article>`;
+}
+
+/* --------------------- עמודי תשתית (משפטי / אודות) --------------------- */
+const STATIC_SLUGS = ['privacy', 'terms', 'contact'];
+
+function staticPage(slug, title, metaDesc, h1, contentHtml) {
+  const canonical = `${BRAND.domain}/${slug}.html`;
+  const body = `
+<article class="static">
+  <div class="wrap static-inner">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">${escText(h1)}</span></nav>
+    <h1 class="static-title">${escText(h1)}</h1>
+    <div class="rte static-body">${contentHtml}</div>
+  </div>
+</article>`;
+  const html = page({ title, description: metaDesc, canonical, body });
+  fs.writeFileSync(path.join(BRAND.outDir, `${slug}.html`), html, 'utf8');
+}
+
+function buildStaticPages() {
+  // ----- מדיניות פרטיות -----
+  staticPage('privacy',
+    'מדיניות פרטיות | איידיר כרטיסים',
+    'מדיניות הפרטיות של איידיר כרטיסים: איסוף מידע, שימוש בקובצי עוגיות, ומודעות Google AdSense.',
+    'מדיניות פרטיות',
+    `<p class="static-updated">עודכן לאחרונה: אוגוסט 2026</p>
+
+<h2>כללי</h2>
+<p>אנו באיידיר כרטיסים מכבדים את פרטיותכם. מדיניות זו מסבירה איזה מידע נאסף בעת השימוש באתר idir.co.il, כיצד נעשה בו שימוש, וכיצד מוצגות מודעות באתר.</p>
+
+<h2>איזה מידע נאסף</h2>
+<p>האתר הוא פורטל מידע ואינו דורש הרשמה. איננו אוספים פרטים אישיים מזהים ביוזמתנו. במהלך הגלישה נאסף מידע טכני אנונימי כגון סוג הדפדפן, המכשיר, כתובת IP וכתובות הדפים שנצפו, לצורכי תפעול, אבטחה ושיפור חוויית המשתמש.</p>
+
+<h2>קובצי עוגיות (Cookies)</h2>
+<p>האתר ושירותי צד שלישי הפועלים בו עושים שימוש בקובצי עוגיות. עוגיות הן קבצי טקסט קטנים הנשמרים בדפדפן ומסייעים בתפעול האתר, בשמירת העדפות (למשל הגדרות הנגישות) ובהצגת מודעות רלוונטיות. ניתן לחסום או למחוק עוגיות דרך הגדרות הדפדפן, אך הדבר עלול לפגוע בחלק מהתכונות.</p>
+
+<h2>מודעות Google AdSense וספקי צד שלישי</h2>
+<p>באתר מוצגות מודעות באמצעות שירות Google AdSense. גוגל וספקים חיצוניים משתמשים בקובצי עוגיות כדי להציג מודעות בהתאם לביקורים קודמים של המשתמש באתר זה ובאתרים אחרים. השימוש של גוגל בעוגיית הפרסום מאפשר לה ולשותפיה להציג מודעות מותאמות אישית.</p>
+<p>ניתן לבטל את השימוש בעוגיות למודעות מותאמות אישית דרך <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">הגדרות המודעות של גוגל</a>. מידע נוסף על האופן שבו גוגל עושה שימוש בנתונים זמין ב<a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener">מדיניות הפרסום של גוגל</a>.</p>
+
+<h2>קישורים לאתרים חיצוניים</h2>
+<p>רכישת הכרטיסים מתבצעת באתר סליקה חיצוני ומאובטח. איננו אחראים למדיניות הפרטיות של אתרים חיצוניים, ומומלץ לעיין במדיניות הפרטיות שלהם בעת הרכישה.</p>
+
+<h2>זכויות המשתמש</h2>
+<p>באפשרותכם לנהל את העדפות העוגיות דרך הדפדפן, ולפנות אלינו בכל שאלה בנוגע לפרטיות בכתובת contact@idir.co.il.</p>
+
+<h2>עדכונים למדיניות</h2>
+<p>אנו רשאים לעדכן מדיניות זו מעת לעת. מומלץ לחזור ולעיין בעמוד זה. המשך השימוש באתר מהווה הסכמה למדיניות המעודכנת.</p>`);
+
+  // ----- תנאי שימוש -----
+  staticPage('terms',
+    'תנאי שימוש | איידיר כרטיסים',
+    'תנאי השימוש בפורטל איידיר כרטיסים, אחריות על מועדים ומחירים, וגילוי נאות לגבי קישורי רכישה.',
+    'תנאי שימוש',
+    `<p class="static-updated">עודכן לאחרונה: אוגוסט 2026</p>
+
+<h2>כללי</h2>
+<p>ברוכים הבאים לאיידיר כרטיסים. השימוש באתר idir.co.il כפוף לתנאים המפורטים להלן. עצם הגלישה והשימוש מהווים הסכמה לתנאים אלה.</p>
+
+<h2>מהות השירות</h2>
+<p>איידיר כרטיסים הוא פורטל מידע ולוח אירועים המרכז מופעים, הצגות וקונצרטים המתקיימים בישראל. האתר מציג מידע על אירועים, מועדים ומחירים, ומפנה את הגולש לרכישת כרטיסים באתר מכירות חיצוני ומאובטח.</p>
+
+<h2>אחריות על מידע ומועדים</h2>
+<p>נתוני המופעים, המועדים והמחירים מתקבלים מספק חיצוני ומתעדכנים באופן שוטף. ייתכנו שינויים, ביטולים או אי דיוקים במידע. איננו אחראים לשינויים במועדים, בהרכב האמנים או במחירים. באחריות המשתמש לוודא את הפרטים המלאים באתר המכירה בעת הרכישה.</p>
+
+<h2>גילוי נאות וקישורי רכישה</h2>
+<p>האתר כולל קישורים לרכישת כרטיסים אצל ספק חיצוני. הרכישה, התשלום, אספקת הכרטיסים והשירות ניתנים על ידי אתר המכירה, ותנאיו ומדיניותו הם החלים על העסקה. ייתכן שאיידיר כרטיסים מקבל תמורה בגין הפניות רכישה.</p>
+
+<h2>קניין רוחני</h2>
+<p>התכנים, העיצוב והמותג של האתר מוגנים בזכויות יוצרים. אין להעתיק, לשכפל או לעשות שימוש מסחרי בתכני האתר ללא אישור מראש ובכתב.</p>
+
+<h2>שינויים בתנאים</h2>
+<p>אנו רשאים לעדכן תנאים אלה מעת לעת. הנוסח המעודכן יפורסם בעמוד זה, והמשך השימוש מהווה הסכמה.</p>
+
+<h2>יצירת קשר</h2>
+<p>לשאלות בנוגע לתנאי השימוש ניתן לפנות אלינו בכתובת contact@idir.co.il.</p>`);
+
+  // ----- אודות ויצירת קשר -----
+  staticPage('contact',
+    'יצירת קשר ואודות | איידיר כרטיסים',
+    'אודות פורטל איידיר כרטיסים ודרכי יצירת קשר לפניות, הצעות ובירורים.',
+    'יצירת קשר ואודות',
+    `<h2>אודות איידיר כרטיסים</h2>
+<p>איידיר כרטיסים הוא פורטל תרבות ואירועים המרכז במקום אחד את המופעים, ההצגות והקונצרטים המובילים בישראל. מטרתנו להקל על הגולשים למצוא את האירוע המתאים, לצפות במועדים ובמחירים מעודכנים, ולעבור בקלות לרכישת כרטיסים באתר מכירות מאובטח.</p>
+<p>הפורטל מתעדכן באופן שוטף עם מופעים חדשים ומועדים נוספים, כדי שתמצאו תמיד מידע רלוונטי ועדכני.</p>
+
+<h2>יצירת קשר</h2>
+<p>נשמח לקבל פניות, הצעות ובירורים. ניתן ליצור עמנו קשר בדואר אלקטרוני:</p>
+<p><a href="mailto:contact@idir.co.il">contact@idir.co.il</a></p>
+<p>נעשה מאמץ לחזור לכל פנייה בהקדם.</p>`);
 }
 
 /* ------------------------------ דף הבית -------------------------------- */
@@ -559,6 +654,7 @@ function buildSitemap(shows) {
   const urls = [
     { loc: BRAND.domain + '/', pri: '1.0' },
     ...shows.map(s => ({ loc: `${BRAND.domain}/shows/${s.id}.html`, pri: '0.8' })),
+    ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -749,6 +845,19 @@ img{max-width:100%;display:block}
 .footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
   margin-top:36px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1)}
 .foot-copy,.foot-disclaimer{font-size:13px;color:#8b8199}
+.footer-legal-links{font-size:13px;color:#8b8199;display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center}
+.footer-legal-links a{color:#cfc7d6;font-weight:600}
+.footer-legal-links a:hover{color:var(--gold)}
+
+/* static / legal pages */
+.static{padding-block:6px 46px}
+.static-inner{max-width:820px}
+.static .breadcrumb{padding-block:18px 2px}
+.static-title{font-size:clamp(26px,4vw,38px);font-weight:800;margin:8px 0 16px;line-height:1.2}
+.static-updated{color:var(--muted);font-size:14px;margin:0 0 22px}
+.static-body h2{font-size:20px;font-weight:800;margin:26px 0 10px}
+.static-body p{margin:0 0 14px}
+.static-body a{color:var(--plum);text-decoration:underline}
 @media(max-width:860px){
   .footer-grid{grid-template-columns:1fr 1fr;gap:30px}
   .foot-desc{max-width:none}
@@ -1039,6 +1148,7 @@ function run() {
   buildSearchIndex(shows);
   shows.forEach(buildShow);
   buildIndex(shows);
+  buildStaticPages();
   buildSitemap(shows);
   buildAdsTxt();
 
@@ -1049,13 +1159,14 @@ function run() {
   console.log('  - dist/index.html  (דף בית)');
   console.log(`  - dist/shows/*.html  (${shows.length} דפי מופע)`);
   console.log(`  - dist/data/search-index.json  (${shows.length} רשומות)`);
-  console.log(`  - dist/sitemap.xml  (${shows.length + 1} כתובות)`);
+  console.log('  - dist/privacy.html, terms.html, contact.html  (עמודי תשתית)');
+  console.log(`  - dist/sitemap.xml  (${shows.length + 1 + STATIC_SLUGS.length} כתובות)`);
   console.log('  - dist/robots.txt, dist/ads.txt');
   console.log('  - dist/assets/styles.css, app.js, accessibility.js');
   console.log('────────────────────────────────────────');
   console.log(`  מופעים:   ${shows.length}`);
   console.log(`  מועדים:   ${totalSeances}`);
-  console.log(`  סה"כ דפי HTML: ${shows.length + 1}`);
+  console.log(`  סה"כ דפי HTML: ${shows.length + 1 + STATIC_SLUGS.length}`);
   console.log(`  זמן ריצה: ${secs} שניות`);
   console.log('✓ הבנייה המלאה הושלמה.');
 }
