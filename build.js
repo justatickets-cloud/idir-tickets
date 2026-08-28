@@ -212,10 +212,10 @@ function siteFooter() {
     <div class="footer-col">
       <h3 class="footer-title">כרטיסים לפי אזור</h3>
       <ul class="footer-links">
-        <li><a href="/#city=תל אביב-יפו">מופעים בתל אביב והמרכז</a></li>
-        <li><a href="/#city=ירושלים">הופעות והצגות בירושלים</a></li>
-        <li><a href="/#city=חיפה">אירועי תרבות בחיפה והצפון</a></li>
-        <li><a href="/#city=באר שבע">מופעים בבאר שבע והדרום</a></li>
+        <li><a href="/הופעות-בתל-אביב">מופעים בתל אביב והמרכז</a></li>
+        <li><a href="/הופעות-בירושלים">הופעות והצגות בירושלים</a></li>
+        <li><a href="/הופעות-בחיפה">אירועי תרבות בחיפה והצפון</a></li>
+        <li><a href="/הופעות-בבאר-שבע">מופעים בבאר שבע והדרום</a></li>
         <li><a href="/#city=לטרון">קונצרטים בלטרון ובית ג'מל</a></li>
       </ul>
     </div>
@@ -537,6 +537,73 @@ function buildHubPages(shows) {
   return results;
 }
 
+/* ------------------- עמודי נחיתה סטטיים לפי עיר (City SEO) ------------- */
+const CITY_PAGES = [
+  {
+    slug: 'הופעות-בתל-אביב', city: 'תל אביב-יפו',
+    title: 'הופעות והצגות בתל אביב | כרטיסים למופעים - איידיר כרטיסים',
+    desc: 'כל ההופעות, ההצגות והקונצרטים בתל אביב יפו במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
+    h1: 'כרטיסים להופעות, הצגות ואירועים בתל אביב-יפו',
+    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בתל אביב יפו. עיר התרבות הגדולה בישראל, עם מגוון אירועים לכל טעם לאורך כל השנה.',
+  },
+  {
+    slug: 'הופעות-בירושלים', city: 'ירושלים',
+    title: 'הופעות והצגות בירושלים | כרטיסים למופעים - איידיר כרטיסים',
+    desc: 'כל ההופעות, ההצגות והקונצרטים בירושלים במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
+    h1: 'כרטיסים להופעות, הצגות ואירועים בירושלים',
+    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בירושלים. עיר הבירה מציעה מגוון עשיר של אירועי תרבות, מוזיקה ובידור.',
+  },
+  {
+    slug: 'הופעות-בחיפה', city: 'חיפה',
+    title: 'הופעות והצגות בחיפה | כרטיסים למופעים - איידיר כרטיסים',
+    desc: 'כל ההופעות, ההצגות והקונצרטים בחיפה ובצפון במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
+    h1: 'כרטיסים להופעות, הצגות ואירועים בחיפה',
+    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בחיפה ובצפון הארץ. מצאו את הבילוי המושלם בבירת הצפון.',
+  },
+  {
+    slug: 'הופעות-בבאר-שבע', city: 'באר שבע',
+    title: 'הופעות והצגות בבאר שבע | כרטיסים למופעים - איידיר כרטיסים',
+    desc: 'כל ההופעות, ההצגות והקונצרטים בבאר שבע ובדרום במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
+    h1: 'כרטיסים להופעות, הצגות ואירועים בבאר שבע',
+    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בבאר שבע ובדרום הארץ. בילוי תרבותי מגוון בבירת הנגב.',
+  },
+];
+
+function buildCityPages(shows) {
+  const results = {};
+  CITY_PAGES.forEach(cfg => {
+    const matched = shows.filter(show =>
+      (show.Seances || []).some(s => s.city === cfg.city));
+
+    const canonical = `${BRAND.domain}/${cfg.slug}`;
+    const crumb = breadcrumbSchema([
+      { name: 'בית', url: BRAND.domain + '/' },
+      { name: cfg.h1, url: canonical },
+    ]);
+    const cards = matched.map(showCard).join('\n');
+
+    const body = `
+<article class="hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">${escText(cfg.h1)}</span></nav>
+    <h1 class="hub-title">${escText(cfg.h1)}</h1>
+    <p class="hub-intro">${escText(cfg.intro)}</p>
+    <div class="results-head">
+      <span class="results-count">${matched.length} מופעים</span>
+    </div>
+    ${matched.length ? `<div class="grid">\n${cards}\n</div>` : hubEmpty()}
+  </div>
+</article>`;
+
+    const html = page({ title: cfg.title, description: cfg.desc, canonical, head: crumb, body });
+    const dir = path.join(BRAND.outDir, cfg.slug);
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+    results[cfg.slug] = matched.length;
+  });
+  return results;
+}
+
 /* ------------------------------ דף הבית -------------------------------- */
 function buildIndex(shows) {
   const sections = [...new Set(shows.map(s => s.section).filter(Boolean))];
@@ -808,6 +875,7 @@ function buildSitemap(shows) {
   const urls = [
     { loc: BRAND.domain + '/', pri: '1.0' },
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
+    ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}`, pri: '0.9' })),
     ...shows.map(s => ({ loc: `${BRAND.domain}/shows/${s.id}.html`, pri: '0.8' })),
     ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
@@ -1324,6 +1392,7 @@ function run() {
   buildIndex(shows);
   buildStaticPages();
   const hubCounts = buildHubPages(shows);
+  const cityCounts = buildCityPages(shows);
   buildSitemap(shows);
   buildAdsTxt();
 
@@ -1337,13 +1406,15 @@ function run() {
   console.log('  - dist/privacy.html, terms.html, contact.html  (עמודי תשתית)');
   console.log(`  - dist/[עמודי עיתוי SEO]  (${HUB_PAGES.length}):`);
   HUB_PAGES.forEach(p => console.log(`      ${p.slug}  (${hubCounts[p.slug]} מופעים)`));
-  console.log(`  - dist/sitemap.xml  (${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length} כתובות)`);
+  console.log(`  - dist/[עמודי ערים SEO]  (${CITY_PAGES.length}):`);
+  CITY_PAGES.forEach(p => console.log(`      ${p.slug}/  (${cityCounts[p.slug]} מופעים)`));
+  console.log(`  - dist/sitemap.xml  (${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length} כתובות)`);
   console.log('  - dist/robots.txt, dist/ads.txt');
   console.log('  - dist/assets/styles.css, app.js, accessibility.js');
   console.log('────────────────────────────────────────');
   console.log(`  מופעים:   ${shows.length}`);
   console.log(`  מועדים:   ${totalSeances}`);
-  console.log(`  סה"כ דפי HTML: ${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length}`);
+  console.log(`  סה"כ דפי HTML: ${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length}`);
   console.log(`  זמן ריצה: ${secs} שניות`);
   console.log('✓ הבנייה המלאה הושלמה.');
 }
