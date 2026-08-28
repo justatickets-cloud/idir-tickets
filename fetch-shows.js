@@ -9,9 +9,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-// כתובת פיד ה-JSON של בראבו. חובה להגדיר את ה-URL המדויק במשתנה הסביבה
-// BRAVO_FEED_URL (מומלץ דרך GitHub Secrets). הערך שכאן הוא placeholder בלבד.
-const BRAVO_FEED_URL = process.env.BRAVO_FEED_URL || 'https://bravo.israelinfo.co.il/api/shows.json';
+// כתובת פיד ה-JSON של בראבו (פיד השותף של איידיר). ניתן לעקוף דרך משתנה
+// הסביבה BRAVO_FEED_URL (למשל GitHub Secret) אם הכתובת תשתנה בעתיד.
+const BRAVO_FEED_URL = process.env.BRAVO_FEED_URL || 'https://idir.kartisim.co.il/xml/partner/shows.json';
 const OUTPUT_FILE = path.resolve('shows.json');
 
 async function syncShows() {
