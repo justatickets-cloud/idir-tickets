@@ -181,6 +181,7 @@ function siteHeader() {
     </a>
     <nav class="top-nav">
       <a href="/">כל המופעים</a>
+      <a href="/רשימת-אמנים/">רשימת אמנים</a>
     </nav>
   </div>
 </header>`;
@@ -201,6 +202,7 @@ function siteFooter() {
     <div class="footer-col">
       <h3 class="footer-title">אירועים ותרבות</h3>
       <ul class="footer-links">
+        <li><a href="/רשימת-אמנים/">רשימת אמנים ומופעים</a></li>
         <li><a href="/#section=הופעות">הופעות מוזיקה חיות</a></li>
         <li><a href="/#section=תיאטרון">הצגות תיאטרון</a></li>
         <li><a href="/#section=סטנדאפ">מופעי סטנדאפ ובידור</a></li>
@@ -605,6 +607,69 @@ function buildCityPages(shows) {
   return results;
 }
 
+/* ---------------------- אינדקס אמנים (Artists Hub) -------------------- */
+// מסננים רק שמות "נקיים" שנראים כמו אמן/הרכב, כדי למנוע עמודים דלים/רעש
+const ARTIST_DESC_MARKERS = ['מארח', 'מארחת', 'עם ', 'רקוויאם', 'לאור הנרות', 'מציג',
+  'מציגה', 'לכבוד', 'טריביוט', 'מחווה', 'הרצאה', 'סדנה', 'סדנת', 'פסטיבל', 'הצגת',
+  'המופע', 'קונצרט', 'בישראל', 'תוכנית', 'ערב', 'סיפור', 'סדרת'];
+
+function isCleanArtist(name) {
+  const n = (name || '').trim();
+  if (!n) return false;
+  if (/[|\-–—:,]/.test(n)) return false;   // מפרידים / פיסוק
+  if (/[A-Za-z]/.test(n)) return false;    // לועזית
+  if (/[0-9]/.test(n)) return false;       // מספרים
+  if (n.split(/\s+/).length > 4) return false;
+  return !ARTIST_DESC_MARKERS.some(d => n.includes(d));
+}
+
+function buildArtistsIndex(shows) {
+  const artistShows = shows
+    .filter(s => isCleanArtist(s.name))
+    .sort((a, b) => a.name.localeCompare(b.name, 'he'));
+
+  const slug = 'רשימת-אמנים';
+  const canonical = `${BRAND.domain}/${slug}/`;
+  const crumb = breadcrumbSchema([
+    { name: 'בית', url: BRAND.domain + '/' },
+    { name: 'אינדקס אמנים ומופעים', url: canonical },
+  ]);
+
+  const cards = artistShows.map(showCard).join('\n');
+  const quickList = artistShows.map(s =>
+    `<li><a href="/shows/${esc(s.id)}.html">${escText(s.name)} הופעות</a></li>`).join('');
+
+  const body = `
+<article class="hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">אינדקס אמנים ומופעים</span></nav>
+    <h1 class="hub-title">אינדקס אמנים ומופעים לשנת 2026</h1>
+    <p class="hub-intro">ריכזנו עבורכם את האמנים והמופעים המובילים המתקיימים בישראל. בחרו אמן, צפו במועדים, בערים ובמחירים, ורכשו כרטיסים בקלות במקום אחד.</p>
+    <div class="results-head"><span class="results-count">${artistShows.length} אמנים ומופעים</span></div>
+    <div class="grid">
+${cards}
+</div>
+    <section class="artist-list-section">
+      <h2>רשימת האמנים לפי סדר אלפביתי</h2>
+      <ul class="artist-list">${quickList}</ul>
+    </section>
+  </div>
+</article>`;
+
+  const html = page({
+    title: 'רשימת אמנים ומופעים מובילים בישראל | איידיר כרטיסים',
+    description: 'רשימת האמנים והמופעים המובילים בישראל. מצאו את האמן האהוב עליכם, צפו במועדים ובמחירים ורכשו כרטיסים בקלות.',
+    canonical,
+    head: crumb,
+    body,
+  });
+
+  const dir = path.join(BRAND.outDir, slug);
+  ensureDir(dir);
+  fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+  return artistShows.length;
+}
+
 /* ------------------------------ דף הבית -------------------------------- */
 function buildIndex(shows) {
   const sections = [...new Set(shows.map(s => s.section).filter(Boolean))];
@@ -877,6 +942,7 @@ function buildSitemap(shows) {
     { loc: BRAND.domain + '/', pri: '1.0' },
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
     ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
+    { loc: `${BRAND.domain}/רשימת-אמנים/`, pri: '0.7' },
     ...shows.map(s => ({ loc: `${BRAND.domain}/shows/${s.id}.html`, pri: '0.8' })),
     ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
@@ -936,6 +1002,7 @@ img{max-width:100%;display:block}
 .brand-mark{font-weight:800;letter-spacing:2px;background:var(--accent);
   color:#fff;padding:6px 10px;border-radius:10px;font-size:14px}
 .brand-name{font-weight:700;font-size:20px}
+.top-nav{display:flex;gap:20px;align-items:center}
 .top-nav a{color:var(--muted);font-weight:600}
 .top-nav a:hover{color:var(--plum)}
 
@@ -1091,6 +1158,14 @@ img{max-width:100%;display:block}
 .hub-empty p{margin:0 0 16px;font-size:17px}
 .hub-empty-links{list-style:none;margin:0;padding:0;display:flex;gap:10px 18px;flex-wrap:wrap;justify-content:center}
 .hub-empty-links a{color:var(--plum);font-weight:700;text-decoration:underline}
+.artist-list-section{margin-top:40px;border-top:1px solid var(--line);padding-top:26px}
+.artist-list-section h2{font-size:20px;font-weight:800;margin:0 0 16px}
+.artist-list{list-style:none;margin:0;padding:0;columns:3;column-gap:28px}
+.artist-list li{margin:0 0 9px;break-inside:avoid}
+.artist-list a{color:var(--ink);font-size:14.5px}
+.artist-list a:hover{color:var(--plum);text-decoration:underline}
+@media(max-width:780px){.artist-list{columns:2}}
+@media(max-width:480px){.artist-list{columns:1}}
 
 /* static / legal pages */
 .static{padding-block:6px 46px}
@@ -1394,6 +1469,7 @@ function run() {
   buildStaticPages();
   const hubCounts = buildHubPages(shows);
   const cityCounts = buildCityPages(shows);
+  const artistCount = buildArtistsIndex(shows);
   buildSitemap(shows);
   buildAdsTxt();
 
@@ -1409,13 +1485,14 @@ function run() {
   HUB_PAGES.forEach(p => console.log(`      ${p.slug}  (${hubCounts[p.slug]} מופעים)`));
   console.log(`  - dist/[עמודי ערים SEO]  (${CITY_PAGES.length}):`);
   CITY_PAGES.forEach(p => console.log(`      ${p.slug}/  (${cityCounts[p.slug]} מופעים)`));
-  console.log(`  - dist/sitemap.xml  (${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length} כתובות)`);
+  console.log(`  - dist/רשימת-אמנים/index.html  (${artistCount} אמנים)`);
+  console.log(`  - dist/sitemap.xml  (${shows.length + 2 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length} כתובות)`);
   console.log('  - dist/robots.txt, dist/ads.txt');
   console.log('  - dist/assets/styles.css, app.js, accessibility.js');
   console.log('────────────────────────────────────────');
   console.log(`  מופעים:   ${shows.length}`);
   console.log(`  מועדים:   ${totalSeances}`);
-  console.log(`  סה"כ דפי HTML: ${shows.length + 1 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length}`);
+  console.log(`  סה"כ דפי HTML: ${shows.length + 2 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length}`);
   console.log(`  זמן ריצה: ${secs} שניות`);
   console.log('✓ הבנייה המלאה הושלמה.');
 }
