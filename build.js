@@ -212,10 +212,10 @@ function siteFooter() {
     <div class="footer-col">
       <h3 class="footer-title">כרטיסים לפי אזור</h3>
       <ul class="footer-links">
-        <li><a href="/הופעות-בתל-אביב">מופעים בתל אביב והמרכז</a></li>
-        <li><a href="/הופעות-בירושלים">הופעות והצגות בירושלים</a></li>
-        <li><a href="/הופעות-בחיפה">אירועי תרבות בחיפה והצפון</a></li>
-        <li><a href="/הופעות-בבאר-שבע">מופעים בבאר שבע והדרום</a></li>
+        <li><a href="/הופעות-בתל-אביב/">מופעים בתל אביב והמרכז</a></li>
+        <li><a href="/הופעות-בירושלים/">הופעות והצגות בירושלים</a></li>
+        <li><a href="/הופעות-בחיפה/">אירועי תרבות בחיפה והצפון</a></li>
+        <li><a href="/הופעות-בבאר-שבע/">מופעים בבאר שבע והדרום</a></li>
         <li><a href="/#city=לטרון">קונצרטים בלטרון ובית ג'מל</a></li>
       </ul>
     </div>
@@ -575,7 +575,8 @@ function buildCityPages(shows) {
     const matched = shows.filter(show =>
       (show.Seances || []).some(s => s.city === cfg.city));
 
-    const canonical = `${BRAND.domain}/${cfg.slug}`;
+    // Cloudflare מגיש עמוד תיקייה עם סלאש בסוף (slug/ = 200), לכן ה-canonical עם סלאש
+    const canonical = `${BRAND.domain}/${cfg.slug}/`;
     const crumb = breadcrumbSchema([
       { name: 'בית', url: BRAND.domain + '/' },
       { name: cfg.h1, url: canonical },
@@ -875,7 +876,7 @@ function buildSitemap(shows) {
   const urls = [
     { loc: BRAND.domain + '/', pri: '1.0' },
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
-    ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}`, pri: '0.9' })),
+    ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
     ...shows.map(s => ({ loc: `${BRAND.domain}/shows/${s.id}.html`, pri: '0.8' })),
     ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
