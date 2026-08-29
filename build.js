@@ -1018,9 +1018,10 @@ function buildAdsTxt() {
   fs.writeFileSync(path.join(BRAND.outDir, 'ads.txt'), BRAND.adsTxt + '\n', 'utf8');
 }
 
-/* --- הפניות 301 מהמבנה הישן (/shows/[id].html) למבנה ההיררכי החדש --- */
+/* --- הפניות 301 מהמבנה הישן למבנה ההיררכי החדש ---
+   Cloudflare מסיר .html ב-308 לפני _redirects, לכן המקור הוא הצורה הנקייה /shows/[id]. --- */
 function buildRedirects(shows) {
-  const lines = shows.map(s => `/shows/${s.id}.html ${encodeURI(s._url)} 301`);
+  const lines = shows.map(s => `/shows/${s.id} ${encodeURI(s._url)} 301`);
   fs.writeFileSync(path.join(BRAND.outDir, '_redirects'), lines.join('\n') + '\n', 'utf8');
 }
 
