@@ -857,15 +857,46 @@ function seanceRow(show, s) {
   </tr>`;
 }
 
+// תת־טיפוס Schema.org מדויק לפי קטגוריה
+const EVENT_TYPES = {
+  'הופעות': 'MusicEvent',
+  'הופעות ג\'אז ובלוז': 'MusicEvent',
+  'הופעות מוזיקה קלאסית': 'MusicEvent',
+  'הופעות רוק': 'MusicEvent',
+  'אופרה': 'MusicEvent',
+  'קונצרטים לילדים': 'MusicEvent',
+  'הצגות': 'TheaterEvent',
+  'הצגות ילדים': 'TheaterEvent',
+  'מחזמר': 'TheaterEvent',
+  'סטנד אפ': 'ComedyEvent',
+  'הופעות מחול ובלט': 'DanceEvent',
+};
+function eventType(section) { return EVENT_TYPES[section] || 'Event'; }
+
+// אזור זמן ישראל לתאריך מסוים (חסין DST: חורף +02:00 / קיץ +03:00)
+function israelOffset(dateStr) {
+  try {
+    const utc = new Date(`${dateStr}T12:00:00Z`);
+    const s = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Jerusalem', timeZoneName: 'longOffset' }).format(utc);
+    const m = s.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/);
+    if (!m) return '+02:00';
+    const sign = m[1][0];
+    const hh = String(Math.abs(parseInt(m[1], 10))).padStart(2, '0');
+    const mm = m[2] || '00';
+    return `${sign}${hh}:${mm}`;
+  } catch (e) { return '+02:00'; }
+}
+
 function eventSchema(show) {
+  const type = eventType(show.section);
   const events = (show.Seances || []).map(s => ({
     '@context': 'https://schema.org',
-    '@type': 'Event',
+    '@type': type,
     name: show.name,
     url: `${BRAND.domain}${show._url}`,
     description: stripTags(show.description).slice(0, 300),
     image: show.image,
-    startDate: `${s.date}T${(s.time || '20:00:00')}`,
+    startDate: `${s.date}T${(s.time || '20:00:00')}${israelOffset(s.date)}`,
     eventStatus: 'https://schema.org/EventScheduled',
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     location: {
