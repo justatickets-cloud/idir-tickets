@@ -1021,7 +1021,12 @@ function buildAdsTxt() {
 /* --- הפניות 301 מהמבנה הישן למבנה ההיררכי החדש ---
    Cloudflare מסיר .html ב-308 לפני _redirects, לכן המקור הוא הצורה הנקייה /shows/[id]. --- */
 function buildRedirects(shows) {
-  const lines = shows.map(s => `/shows/${s.id} ${encodeURI(s._url)} 301`);
+  const lines = [];
+  for (const s of shows) {
+    const dest = encodeURI(s._url);
+    lines.push(`/shows/${s.id} ${dest} 301`);        // הצורה הנקייה
+    lines.push(`/shows/${s.id}.html ${dest} 301`);   // הצורה עם .html
+  }
   fs.writeFileSync(path.join(BRAND.outDir, '_redirects'), lines.join('\n') + '\n', 'utf8');
 }
 
