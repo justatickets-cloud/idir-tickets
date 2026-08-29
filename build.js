@@ -108,6 +108,53 @@ function israelToday() {
   return new Date(y, m - 1, d);
 }
 
+/* ---- מבנה כתובות היררכי: קטגוריה + סלאג מופע ---- */
+const CATEGORY_SLUGS = {
+  'הופעות': 'shows',
+  'הופעות ג\'אז ובלוז': 'jazz-blues',
+  'הופעות מוזיקה קלאסית': 'classical',
+  'הופעות מחול ובלט': 'dance-ballet',
+  'הצגות': 'plays',
+  'הצגות ילדים': 'kids',
+  'אופרה': 'opera',
+  'סטנד אפ': 'standup',
+  'קרקס': 'circus',
+  'הרצאות וכיתות האמן': 'lectures',
+  'סרטים': 'movies',
+  'הופעות רוק': 'rock',
+  'תערוכות': 'exhibitions',
+  'מחזמר': 'musical',
+  'קונצרטים לילדים': 'kids-concerts',
+  'אטרקציות': 'attractions',
+  'שעת סיפור': 'story-time',
+};
+function categorySlug(section) { return CATEGORY_SLUGS[section] || 'events'; }
+
+// ניקוי שם מופע לסלאג URL: משאיר אותיות/ספרות, רווחים ומקפים -> מקף יחיד
+function slugify(str) {
+  return String(str || '')
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '') // מסיר מרכאות, סלאשים, פיסוק ותווים מיוחדים
+    .trim()
+    .replace(/[\s-]+/g, '-')           // רווחים ומקפים כפולים -> מקף אחד
+    .replace(/^-+|-+$/g, '');
+}
+
+// מקצה לכל מופע נתיב תיקייה (_dir) וכתובת URL (_url) ייחודיים
+function assignShowUrls(shows) {
+  const used = new Set();
+  const SUFFIX = 'כרטיסים-ולוח-הופעות';
+  for (const s of shows) {
+    const cat = categorySlug(s.section);
+    const nameSlug = slugify(s.name) || String(s.id);
+    let rel = `${cat}/${nameSlug}-${SUFFIX}`;
+    if (used.has(rel)) rel = `${cat}/${nameSlug}-${s.id}-${SUFFIX}`;
+    used.add(rel);
+    s._dir = rel;
+    s._url = `/${rel}/`;
+  }
+}
+
 /* --------------------------- טעינת הנתונים ----------------------------- */
 // תיקון תווים משובשים מהפיד (אותיות קיריליות שהוחלפו במקף/מרכאות) + ניקוי רווחים
 function fixText(v) {
@@ -299,12 +346,12 @@ function showCard(show) {
     data-city="${esc(cities.join('|'))}"
     data-date-from="${esc(show.dateFrom || dates[0] || '')}"
     data-dates="${esc(dates.join(','))}">
-    <a class="card-media" href="/shows/${esc(show.id)}.html" aria-label="${esc(show.name)}">
+    <a class="card-media" href="${esc(show._url)}" aria-label="${esc(show.name)}">
       <img loading="lazy" src="${esc(show.image)}" alt="${esc(show.name)}">
       <span class="card-badge">${escText(show.section)}</span>
     </a>
     <div class="card-body">
-      <h3 class="card-title"><a href="/shows/${esc(show.id)}.html">${escText(show.name)}</a></h3>
+      <h3 class="card-title"><a href="${esc(show._url)}">${escText(show.name)}</a></h3>
       <p class="card-meta">
         <span class="ico-cal">${formatDate(nextDate)}</span>
         ${cityText ? `<span class="ico-pin">${escText(cityText)}</span>` : ''}
@@ -312,7 +359,7 @@ function showCard(show) {
       <p class="card-announce">${escText(stripTags(show.announce || show.description))}</p>
       <div class="card-foot">
         <span class="card-price">${priceLabel(show.priceMin, show.priceMax)}</span>
-        <a class="btn btn-primary" href="/shows/${esc(show.id)}.html">לפרטים וכרטיסים</a>
+        <a class="btn btn-primary" href="${esc(show._url)}">לפרטים וכרטיסים</a>
       </div>
     </div>
   </article>`;
@@ -637,7 +684,7 @@ function buildArtistsIndex(shows) {
 
   const cards = artistShows.map(showCard).join('\n');
   const quickList = artistShows.map(s =>
-    `<li><a href="/shows/${esc(s.id)}.html">${escText(s.name)} הופעות</a></li>`).join('');
+    `<li><a href="${esc(s._url)}">${escText(s.name)} הופעות</a></li>`).join('');
 
   const body = `
 <article class="hub">
@@ -839,7 +886,7 @@ function eventSchema(show) {
 function buildShow(show) {
   const cities = [...new Set((show.Seances || []).map(s => s.city).filter(Boolean))];
   const rows = (show.Seances || []).map(s => seanceRow(show, s)).join('\n');
-  const canonical = `${BRAND.domain}/shows/${show.id}.html`;
+  const canonical = `${BRAND.domain}${show._url}`;
   const metaDesc = stripTags(show.description).slice(0, 155);
 
   const body = `
@@ -907,8 +954,9 @@ function buildShow(show) {
     body,
   });
 
-  ensureDir(path.join(BRAND.outDir, 'shows'));
-  fs.writeFileSync(path.join(BRAND.outDir, 'shows', `${show.id}.html`), html, 'utf8');
+  const dir = path.join(BRAND.outDir, ...show._dir.split('/'));
+  ensureDir(dir);
+  fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
 }
 
 /* --------------------------- אינדקס חיפוש ------------------------------ */
@@ -926,7 +974,7 @@ function buildSearchIndex(shows) {
       dateTo: s.dateTo,
       dates: [...new Set((s.Seances || []).map(z => z.date).filter(Boolean))],
       cities,
-      url: `/shows/${s.id}.html`,
+      url: s._url,
       announce: stripTags(s.announce || s.description).slice(0, 120),
     };
   });
@@ -943,7 +991,7 @@ function buildSitemap(shows) {
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
     ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
     { loc: `${BRAND.domain}/רשימת-אמנים/`, pri: '0.7' },
-    ...shows.map(s => ({ loc: `${BRAND.domain}/shows/${s.id}.html`, pri: '0.8' })),
+    ...shows.map(s => ({ loc: `${BRAND.domain}${encodeURI(s._url)}`, pri: '0.8' })),
     ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -968,6 +1016,12 @@ Sitemap: ${BRAND.domain}/sitemap.xml
 /* ------------------------------ ads.txt (AdSense) --------------------- */
 function buildAdsTxt() {
   fs.writeFileSync(path.join(BRAND.outDir, 'ads.txt'), BRAND.adsTxt + '\n', 'utf8');
+}
+
+/* --- הפניות 301 מהמבנה הישן (/shows/[id].html) למבנה ההיררכי החדש --- */
+function buildRedirects(shows) {
+  const lines = shows.map(s => `/shows/${s.id}.html ${encodeURI(s._url)} 301`);
+  fs.writeFileSync(path.join(BRAND.outDir, '_redirects'), lines.join('\n') + '\n', 'utf8');
 }
 
 /* ------------------------------ נכסים (CSS/JS) ------------------------- */
@@ -1456,6 +1510,7 @@ function run() {
   const shows = loadShows();
   const scope = BRAND.limit > 0 ? `${shows.length} מופעים (מגבלת פיילוט)` : `${shows.length} מופעים (מלא)`;
   console.log(`· לעיבוד: ${scope}`);
+  assignShowUrls(shows);
 
   if (fs.existsSync(BRAND.outDir)) {
     fs.rmSync(BRAND.outDir, { recursive: true, force: true });
@@ -1472,13 +1527,15 @@ function run() {
   const artistCount = buildArtistsIndex(shows);
   buildSitemap(shows);
   buildAdsTxt();
+  buildRedirects(shows);
 
   const totalSeances = shows.reduce((n, s) => n + ((s.Seances || []).length), 0);
   const secs = ((Date.now() - t0) / 1000).toFixed(2);
 
   console.log('· נוצרו הקבצים:');
   console.log('  - dist/index.html  (דף בית)');
-  console.log(`  - dist/shows/*.html  (${shows.length} דפי מופע)`);
+  console.log(`  - dist/[category]/[show-slug]-כרטיסים-ולוח-הופעות/index.html  (${shows.length} דפי מופע)`);
+  console.log('  - dist/_redirects  (301 מהמבנה הישן)');
   console.log(`  - dist/data/search-index.json  (${shows.length} רשומות)`);
   console.log('  - dist/privacy.html, terms.html, contact.html  (עמודי תשתית)');
   console.log(`  - dist/[עמודי עיתוי SEO]  (${HUB_PAGES.length}):`);
