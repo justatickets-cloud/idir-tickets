@@ -22,6 +22,7 @@ const BRAND = {
   limit: 0, // 0 = כל המופעים ; מספר חיובי = מגבלה (למשל 10 לפיילוט)
   adsenseClient: 'ca-pub-0718695615942520',
   adsTxt: 'google.com, pub-0718695615942520, DIRECT, f08c47fec0942fa0',
+  ga4: 'G-SPHBFXVSJW',
 };
 
 /* ------------------------------ עזרי טקסט ------------------------------- */
@@ -192,6 +193,14 @@ function page({ title, description, canonical, head = '', body }) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=${BRAND.ga4}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '${BRAND.ga4}');
+</script>
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(canonical)}">
