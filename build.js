@@ -222,9 +222,8 @@ ${a11yWidget()}
 function siteHeader() {
   return `<header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="/">
-      <span class="brand-mark">IDIR</span>
-      <span class="brand-name">${esc(BRAND.nameHe)}</span>
+    <a class="brand" href="/" aria-label="${esc(BRAND.nameHe)}">
+      <img src="/assets/logo.svg" alt="${esc(BRAND.nameHe)}" class="site-logo" width="188" height="40">
     </a>
     <nav class="top-nav">
       <a href="/">כל המופעים</a>
@@ -821,7 +820,7 @@ function buildIndex(shows) {
         '@id': BRAND.domain + '/#organization',
         name: BRAND.nameHe,
         url: BRAND.domain + '/',
-        logo: BRAND.domain + '/assets/logo.png',
+        logo: BRAND.domain + '/assets/logo.svg',
       },
     ],
   };
@@ -1032,10 +1031,18 @@ function buildRedirects(shows) {
 
 /* ------------------------------ נכסים (CSS/JS) ------------------------- */
 function buildAssets() {
-  ensureDir(path.join(BRAND.outDir, 'assets'));
-  fs.writeFileSync(path.join(BRAND.outDir, 'assets', 'styles.css'), STYLES, 'utf8');
-  fs.writeFileSync(path.join(BRAND.outDir, 'assets', 'app.js'), APP_JS, 'utf8');
-  fs.writeFileSync(path.join(BRAND.outDir, 'assets', 'accessibility.js'), A11Y_JS, 'utf8');
+  const outAssets = path.join(BRAND.outDir, 'assets');
+  ensureDir(outAssets);
+  fs.writeFileSync(path.join(outAssets, 'styles.css'), STYLES, 'utf8');
+  fs.writeFileSync(path.join(outAssets, 'app.js'), APP_JS, 'utf8');
+  fs.writeFileSync(path.join(outAssets, 'accessibility.js'), A11Y_JS, 'utf8');
+  // העתקת קבצים סטטיים מתיקיית המקור assets/ (לוגו וכו')
+  const srcAssets = path.join(__dirname, 'assets');
+  if (fs.existsSync(srcAssets)) {
+    for (const f of fs.readdirSync(srcAssets)) {
+      fs.copyFileSync(path.join(srcAssets, f), path.join(outAssets, f));
+    }
+  }
 }
 
 const STYLES = `:root{
@@ -1059,9 +1066,8 @@ img{max-width:100%;display:block}
   backdrop-filter:saturate(140%) blur(10px);border-bottom:1px solid var(--line)}
 .header-inner{display:flex;align-items:center;justify-content:space-between;height:68px}
 .brand{display:flex;align-items:center;gap:10px}
-.brand-mark{font-weight:800;letter-spacing:2px;background:var(--accent);
-  color:#fff;padding:6px 10px;border-radius:10px;font-size:14px}
-.brand-name{font-weight:700;font-size:20px}
+.site-logo{height:40px;width:auto;max-width:100%;display:block}
+@media(max-width:560px){.site-logo{height:34px}}
 .top-nav{display:flex;gap:20px;align-items:center}
 .top-nav a{color:var(--muted);font-weight:600}
 .top-nav a:hover{color:var(--plum)}

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 80" width="980" height="80" role="img" aria-label="איידיר כרטיסים">
+  <defs>
+    <linearGradient id="idirMarkB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d1f4b"/>
+      <stop offset="0.55" stop-color="#a63a63"/>
+      <stop offset="1" stop-color="#bf9b48"/>
+    </linearGradient>
+  </defs>
+
+  <!-- סמל (badge) בצד ימין של הקנבס הרחב -->
+  <rect x="906" y="12" width="56" height="56" rx="15" fill="url(#idirMarkB)"/>
+  <rect x="919" y="30" width="30" height="20" rx="5" fill="#ffffff"/>
+  <line x1="942" y1="32" x2="942" y2="48" stroke="#bf9b48" stroke-width="2" stroke-dasharray="2 2"/>
+  <circle cx="919" cy="40" r="3" fill="url(#idirMarkB)"/>
+  <circle cx="949" cy="40" r="3" fill="url(#idirMarkB)"/>
+
+  <!-- טקסט המותג מיושר לימין; שאר הרוחב נשאר ריק בכוונה -->
+  <text x="892" y="44" text-anchor="end"
+        font-family="Heebo, Assistant, Arial, 'Segoe UI', sans-serif"
+        font-size="32" font-weight="800" fill="#1b1420">איידיר כרטיסים</text>
+  <text x="892" y="64" text-anchor="end"
+        font-family="Arial, 'Segoe UI', sans-serif"
+        font-size="13" font-weight="700" letter-spacing="4" fill="#a07f2e">IDIR TICKETS</text>
+</svg>
