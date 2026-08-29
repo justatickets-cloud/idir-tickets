@@ -853,6 +853,7 @@ function eventSchema(show) {
     '@context': 'https://schema.org',
     '@type': 'Event',
     name: show.name,
+    url: `${BRAND.domain}${show._url}`,
     description: stripTags(show.description).slice(0, 300),
     image: show.image,
     startDate: `${s.date}T${(s.time || '20:00:00')}`,
@@ -878,6 +879,7 @@ function eventSchema(show) {
     },
     organizer: { '@type': 'Organization', name: BRAND.nameHe, url: BRAND.domain },
   }));
+  if (!events.length) return ''; // מופע ללא מועדים: אין Event תקין (חסר startDate)
   const payload = events.length === 1 ? events[0] : events;
   return `<script type="application/ld+json">${JSON.stringify(payload)}</script>`;
 }
