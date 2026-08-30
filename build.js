@@ -297,6 +297,7 @@ function siteFooter() {
     <a href="/הופעות-השבוע.html">הופעות השבוע</a>
     <a href="/הופעות-החודש.html">הופעות החודש</a>
     <a href="/הופעות-2026.html">הופעות 2026</a>
+    <a href="/הופעות-2027.html">הופעות 2027</a>
   </div>
 
   <div class="footer-bottom wrap">
@@ -347,11 +348,13 @@ function showCard(show) {
   const cities = [...new Set((show.Seances || []).map(s => s.city).filter(Boolean))];
   const cityText = cities.slice(0, 2).join(' · ') + (cities.length > 2 ? ' ועוד' : '');
   const dates = [...new Set((show.Seances || []).map(s => s.date).filter(Boolean))];
+  const halls = [...new Set((show.Seances || []).map(s => s.hall).filter(Boolean))];
   const nextDate = dates[0] || show.dateFrom;
   return `<article class="card"
     data-name="${esc(show.name)}"
     data-section="${esc(show.section)}"
     data-city="${esc(cities.join('|'))}"
+    data-venue="${esc(halls.join('|'))}"
     data-date-from="${esc(show.dateFrom || dates[0] || '')}"
     data-dates="${esc(dates.join(','))}">
     <a class="card-media" href="${esc(show._url)}" aria-label="${esc(show.name)}">
@@ -502,6 +505,13 @@ const HUB_PAGES = [
     intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בשנת 2026 ברחבי ישראל. לוח אירועים מקיף שמתעדכן באופן שוטף.',
   },
   {
+    slug: 'הופעות-2027', when: 'year-2027',
+    title: 'הופעות 2027 בישראל | לוח מופעים, הצגות וקונצרטים 2027 - איידיר כרטיסים',
+    desc: 'לוח המופעים המלא לשנת 2027: הופעות, הצגות, קונצרטים ואירועי תרבות ברחבי ישראל. הזמינו כרטיסים מראש.',
+    h1: 'כרטיסים להופעות, הצגות וקונצרטים 2027',
+    intro: 'כל המופעים, ההצגות והקונצרטים המתוכננים לשנת 2027 ברחבי ישראל. הקדימו והזמינו כרטיסים לאירועים הבולטים של השנה הבאה.',
+  },
+  {
     slug: 'הופעות-בתל-אביב-היום', when: 'today', city: TLV,
     title: 'הופעות בתל אביב היום | כרטיסים למופעים היום בתל אביב - איידיר כרטיסים',
     desc: 'כל ההופעות וההצגות שמתקיימות היום בתל אביב יפו. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
@@ -557,6 +567,7 @@ function buildHubPages(shows) {
       case 'next-7': return dateStr >= todayStr && dateStr <= plus6;
       case 'this-month': return dateStr >= todayStr && dateStr <= plus29;
       case 'year-2026': return dateStr.slice(0, 4) === '2026';
+      case 'year-2027': return dateStr.slice(0, 4) === '2027';
       default: return false;
     }
   }
@@ -745,6 +756,15 @@ function buildIndex(shows) {
   const cityOptions = citiesSorted.map(c =>
     `<option value="${esc(c)}">${escText(c)}</option>`).join('');
 
+  // אולמות: 8 האולמות הנפוצים ביותר (נגזר דינמית מהנתונים), עם תווית מקוצרת
+  const hallCount = {};
+  shows.forEach(s => [...new Set((s.Seances || []).map(z => z.hall).filter(Boolean))]
+    .forEach(h => { hallCount[h] = (hallCount[h] || 0) + 1; }));
+  const topVenues = Object.entries(hallCount).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0]);
+  const venueLabel = h => h.split(/\s[-–—]\s|,/)[0].trim();
+  const venueChips = topVenues.map(h =>
+    `<button class="chip" data-filter="venue" data-value="${esc(h)}" title="${esc(h)}">${escText(venueLabel(h))}</button>`).join('');
+
   const body = `
 <section class="hero">
   <div class="wrap hero-inner">
@@ -785,6 +805,13 @@ function buildIndex(shows) {
         <button class="chip" data-filter="date" data-value="weekend">סוף השבוע הקרוב (חמישי עד שבת)</button>
         <button class="chip" data-filter="date" data-value="next-7">7 הימים הקרובים</button>
         <button class="chip" data-filter="date" data-value="this-month">החודש הקרוב</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">אולמות ותיאטרונים</span>
+      <div class="chips venue-chips">
+        <button class="chip is-active" data-filter="venue" data-value="">הכל</button>
+        ${venueChips}
       </div>
     </div>
   </div>
@@ -887,6 +914,17 @@ function israelOffset(dateStr) {
   } catch (e) { return '+02:00'; }
 }
 
+// שעת סיום משוערת: 3 שעות אחרי ההתחלה, בפורמט ISO 8601 עם אזור זמן
+function endDateTime(dateStr, timeStr) {
+  const [y, mo, d] = String(dateStr).split('-').map(Number);
+  const [hh, mm, ss] = String(timeStr || '20:00:00').split(':').map(Number);
+  const dt = new Date(Date.UTC(y, mo - 1, d, hh, mm, ss || 0));
+  dt.setUTCHours(dt.getUTCHours() + 3);
+  const p = n => String(n).padStart(2, '0');
+  const eyd = `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`;
+  return `${eyd}T${p(dt.getUTCHours())}:${p(dt.getUTCMinutes())}:${p(dt.getUTCSeconds())}${israelOffset(eyd)}`;
+}
+
 function eventSchema(show) {
   const type = eventType(show.section);
   const events = (show.Seances || []).map(s => ({
@@ -897,6 +935,8 @@ function eventSchema(show) {
     description: stripTags(show.description).slice(0, 300),
     image: show.image,
     startDate: `${s.date}T${(s.time || '20:00:00')}${israelOffset(s.date)}`,
+    endDate: endDateTime(s.date, s.time),
+    performer: { '@type': 'PerformingGroup', name: show.name },
     eventStatus: 'https://schema.org/EventScheduled',
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     location: {
@@ -1149,6 +1189,7 @@ img{max-width:100%;display:block}
   font-size:14px;transition:all .15s ease}
 .chip:hover{border-color:var(--plum);color:var(--plum)}
 .chip.is-active{background:var(--plum);border-color:var(--plum);color:#fff}
+.venue-chips .chip{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .results-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap}
 .section-title{font-size:24px;margin:0;font-weight:800}
@@ -1367,7 +1408,7 @@ const APP_JS = `(function(){
   var citySelect=document.getElementById('city-select');
   var loadMoreWrap=document.getElementById('load-more-wrap');
   var loadMoreBtn=document.getElementById('load-more');
-  var state={text:'',section:'',city:'',date:'all'};
+  var state={text:'',section:'',city:'',venue:'',date:'all'};
   var PAGE=24, shownLimit=PAGE;
 
   function pad(n){return (n<10?'0':'')+n;}
@@ -1407,8 +1448,10 @@ const APP_JS = `(function(){
       var okText=!t || name.indexOf(t)>-1 || section.toLowerCase().indexOf(t)>-1 || cities.join(' ').toLowerCase().indexOf(t)>-1;
       var okSection=!state.section || section===state.section;
       var okCity=!state.city || cities.indexOf(state.city)>-1;
+      var venues=(card.getAttribute('data-venue')||'').split('|');
+      var okVenue=!state.venue || venues.indexOf(state.venue)>-1;
       var okDate=matchDate(card.getAttribute('data-dates'), state.date);
-      if(okText&&okSection&&okCity&&okDate){
+      if(okText&&okSection&&okCity&&okVenue&&okDate){
         matched++;
         if(rendered<shownLimit){ card.style.display=''; rendered++; }
         else { card.style.display='none'; }
