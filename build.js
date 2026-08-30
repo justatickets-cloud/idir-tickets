@@ -764,6 +764,10 @@ function buildIndex(shows) {
   const venueLabel = h => h.split(/\s[-–—]\s|,/)[0].trim();
   const venueChips = topVenues.map(h =>
     `<button class="chip" data-filter="venue" data-value="${esc(h)}" title="${esc(h)}">${escText(venueLabel(h))}</button>`).join('');
+  // רשימת כל האולמות (ייחודית, ממוינת) לתפריט נפתח
+  const allVenues = Object.keys(hallCount).sort((a, b) => a.localeCompare(b, 'he'));
+  const venueOptions = allVenues.map(h =>
+    `<option value="${esc(h)}">${escText(h)}</option>`).join('');
 
   const body = `
 <section class="hero">
@@ -812,6 +816,10 @@ function buildIndex(shows) {
       <div class="chips venue-chips">
         <button class="chip is-active" data-filter="venue" data-value="">הכל</button>
         ${venueChips}
+        <select id="venue-select" class="city-select venue-select" aria-label="בחירת אולם מתוך כל האולמות">
+          <option value="">כל שאר האולמות…</option>
+          ${venueOptions}
+        </select>
       </div>
     </div>
   </div>
@@ -1406,6 +1414,7 @@ const APP_JS = `(function(){
   var countEl=document.getElementById('count');
   var emptyEl=document.getElementById('empty');
   var citySelect=document.getElementById('city-select');
+  var venueSelect=document.getElementById('venue-select');
   var loadMoreWrap=document.getElementById('load-more-wrap');
   var loadMoreBtn=document.getElementById('load-more');
   var state={text:'',section:'',city:'',venue:'',date:'all'};
@@ -1484,6 +1493,17 @@ const APP_JS = `(function(){
     if(citySelect) citySelect.value = chipMatch ? '' : (v || '');
   }
 
+  // סנכרון בין כפתורי האולמות המובילים לתפריט הנפתח
+  function syncVenueUI(v){
+    var chipMatch=false;
+    [].forEach.call(document.querySelectorAll('.chip[data-filter="venue"]'),function(c){
+      var on=c.getAttribute('data-value')===v;
+      if(on && v) chipMatch=true;
+      c.classList.toggle('is-active', on);
+    });
+    if(venueSelect) venueSelect.value = chipMatch ? '' : (v || '');
+  }
+
   if(q) q.addEventListener('input',function(){state.text=q.value;apply();});
 
   // כיבוד פרמטר ?q= מתוך SearchAction / קישור חיצוני
@@ -1499,6 +1519,8 @@ const APP_JS = `(function(){
       state[f]=v;
       if(f==='city'){
         syncCityUI(v);
+      } else if(f==='venue'){
+        syncVenueUI(v);
       } else {
         [].slice.call(document.querySelectorAll('.chip[data-filter="'+f+'"]')).forEach(function(c){
           c.classList.toggle('is-active', c===chip);
@@ -1512,6 +1534,13 @@ const APP_JS = `(function(){
   if(citySelect) citySelect.addEventListener('change',function(){
     state.city=citySelect.value;
     syncCityUI(citySelect.value);
+    apply();
+  });
+
+  // תפריט "כל שאר האולמות"
+  if(venueSelect) venueSelect.addEventListener('change',function(){
+    state.venue=venueSelect.value;
+    syncVenueUI(venueSelect.value);
     apply();
   });
 
