@@ -314,6 +314,7 @@ function siteFooter() {
     <div class="footer-legal-links">
       <a href="/privacy.html">מדיניות פרטיות</a> ·
       <a href="/terms.html">תנאי שימוש</a> ·
+      <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות נפוצות ועזרה</a> ·
       <a href="/contact.html">יצירת קשר</a>
     </div>
     <div class="foot-disclaimer">רכישת כרטיסים | המידע, לוחות המועדים והכרטיסים מתעדכנים באופן שוטף.</div>
@@ -1050,7 +1051,7 @@ function venuesSeatingGuide() {
 <h2>האולמות המובילים אצלנו</h2>
 <p>לחצו על כל אולם כדי לראות את לוח המופעים המלא והקרוב שלו, ולהזמין כרטיסים:</p>
 <ul class="mag-picks">${venueLinks}</ul>
-<p>מחפשים מופע ספציפי? בקרו ב<a href="/">עמוד הבית</a> וסננו לפי אולם, עיר או תאריך, או עברו ל<a href="/רשימת-אמנים/">רשימת האמנים</a>.</p>`;
+<p>מחפשים מופע ספציפי? בקרו ב<a href="/">עמוד הבית</a> וסננו לפי אולם, עיר או תאריך, או עברו ל<a href="/רשימת-אמנים/">רשימת האמנים</a>. יש לכם שאלות על ביטולים, מחירים או קבלת הכרטיסים? כל התשובות ב<a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">מדריך השאלות הנפוצות</a>.</p>`;
   return {
     slug: 'מדריך-אולמות-הופעות-איפה-כדאי-לשבת',
     redirectFrom: 'venues-seating-guide',
@@ -1205,7 +1206,7 @@ ${list(music)}
 
 <h2>למה כדאי להזמין כרטיסים כבר עכשיו</h2>
 <p>עונת 2027 כבר פתוחה להזמנות, וההיערכות המוקדמת משתלמת. למופעים המבוקשים המקומות הטובים אוזלים ראשונים, והמחירים נוטים לעלות ככל שמתקרב מועד האירוע. הזמנה מוקדמת מבטיחה לכם לא רק כרטיס, אלא את המקום הנכון: מרכז האולם לאיזון הסאונד הטוב ביותר, או השורות הקדמיות לחוויה אינטימית. לפני הרכישה, שווה לעיין ב<a href="/magazine/${encodeURI('מדריך-אולמות-הופעות-איפה-כדאי-לשבת')}/">מדריך האולמות שלנו</a> כדי לבחור בדיוק איפה לשבת.</p>
-<p>לרשימה המלאה והמתעדכנת של כל האירועים, בקרו בלוח <a href="/הופעות-2027.html">הופעות 2027</a>, או עברו ל<a href="/">עמוד הבית</a> וסננו לפי אמן, אולם, עיר ותאריך.</p>`;
+<p>לרשימה המלאה והמתעדכנת של כל האירועים, בקרו בלוח <a href="/הופעות-2027.html">הופעות 2027</a>, או עברו ל<a href="/">עמוד הבית</a> וסננו לפי אמן, אולם, עיר ותאריך. לפני הרכישה, כדאי לעיין ב<a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות הנפוצות על רכישת כרטיסים</a>.</p>`;
 
   return {
     slug: 'הופעות-החובה-והאירועים-הגדולים-של-2027',
@@ -1762,6 +1763,7 @@ function buildShow(show) {
         <span class="aside-price-v${sold ? ' soldout' : ''}">${sold ? 'אזלו הכרטיסים' : priceLabel(show.priceMin, show.priceMax)}</span>
         ${sold ? `<span class="btn btn-soldout btn-block">אזלו הכרטיסים</span>` : `<a class="btn btn-primary btn-block" href="#seances">בחירת מועד</a>`}
         <p class="aside-note">${sold ? 'המופע אזל' : 'רכישת כרטיסים'}</p>
+        <p class="faq-hint">שאלות על ביטולים או קבלת כרטיסים? <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">מדריך השאלות הנפוצות ›</a></p>
       </div>
     </aside>
   </div>
@@ -1778,6 +1780,7 @@ function buildShow(show) {
         </tbody>
       </table>
     </div>
+    <p class="faq-hint faq-hint-center">שאלות על ביטולים או קבלת כרטיסים? <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">קראו במדריך השאלות הנפוצות ›</a></p>
   </section>
 </article>`;
 
@@ -2178,6 +2181,10 @@ span.btn-soldout{cursor:default}
 .faq-answer{padding:0 20px 18px 20px;line-height:1.75;color:var(--ink)}
 .faq-answer a{color:var(--plum);font-weight:700}
 .faq-foot{margin-top:22px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:15px}
+.faq-hint{font-size:13px;color:var(--muted);margin:10px 0 0;line-height:1.5;opacity:.85}
+.faq-hint a{color:var(--muted);text-decoration:underline;font-weight:600}
+.faq-hint a:hover{color:var(--plum);opacity:1}
+.faq-hint-center{text-align:center;margin-top:18px}
 .mag-note{display:block;margin-top:10px;padding:10px 14px;background:var(--bg);border-right:3px solid var(--gold);border-radius:6px;color:var(--muted);font-style:italic;font-size:14px}
 .mag-back{margin-top:30px;padding-top:20px;border-top:1px solid var(--line)}
 .mag-back a{color:var(--plum);font-weight:700}
