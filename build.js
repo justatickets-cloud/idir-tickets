@@ -1083,6 +1083,14 @@ function magArticlePage(a) {
     publisher: { '@type': 'Organization', name: BRAND.nameHe, url: BRAND.domain, logo: { '@type': 'ImageObject', url: BRAND.domain + '/assets/logo.svg' } },
     mainEntityOfPage: canonical,
   };
+  // סכמת FAQPage לעמודי שאלות ותשובות (Rich Snippets)
+  const faqSchema = (a.faq && a.faq.length) ? {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: a.faq.map(f => ({
+      '@type': 'Question', name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.aText || String(f.a || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() },
+    })),
+  } : null;
   const body = `
 <article class="mag-article">
   <div class="wrap mag-wrap">
@@ -1098,7 +1106,7 @@ function magArticlePage(a) {
     title: `${a.title} | מגזין איידיר כרטיסים`,
     description: a.description,
     canonical,
-    head: crumb + `\n<script type="application/ld+json">${JSON.stringify(articleSchema)}</script>` + (a.image ? `\n<meta property="og:image" content="${esc(a.image)}">` : ''),
+    head: crumb + `\n<script type="application/ld+json">${JSON.stringify(articleSchema)}</script>` + (faqSchema ? `\n<script type="application/ld+json">${JSON.stringify(faqSchema)}</script>` : '') + (a.image ? `\n<meta property="og:image" content="${esc(a.image)}">` : ''),
     body,
   });
   const dir = path.join(BRAND.outDir, 'magazine', a.slug);
@@ -1211,9 +1219,38 @@ ${list(music)}
   };
 }
 
+// עמוד שאלות ותשובות נצחי (FAQ) — מבוסס על הנהלים הרשמיים של מערכת ההזמנות
+function faqArticle() {
+  const faq = [
+    { q: 'מתי ואיך מקבלים את הכרטיסים לאחר ההזמנה?', a: `רוב הכרטיסים במערכת הם כרטיסים דיגיטליים עם ברקוד. מיד לאחר התשלום נשלח לכתובת המייל שהזנתם אישור הזמנה הכולל כפתור לצפייה בכרטיסים, כאשר הברקודים עצמם נפתחים ביום המופע. בנוסף, יום לפני המועד או ביום המופע נשלחת הודעת SMS עם הכרטיסים האלקטרוניים למספר הנייד שהוזן בהזמנה. בכל שלב אפשר לפתוח את הכרטיסים גם דרך אזור "ההזמנות שלי" באתר ההזמנות. אין צורך באיסוף פיזי מקופה.` },
+    { q: 'איך מזמינים ומשלמים, והאם אפשר לפרוס לתשלומים?', a: `בעמוד המופע לוחצים על הכפתור "רכישת כרטיסים". קיימים שני סוגי כרטיסים: מקומות מסומנים, שבהם בוחרים את המושב במפת האולם, או כרטיסי כניסה חופשית ללא מקום שמור, שבהם בוחרים את כמות הכרטיסים. התשלום מתבצע בכרטיס אשראי בלבד, דרך עמוד תשלום מאובטח ומוצפן המועבר ישירות לחברת האשראי, כך שפרטי הכרטיס אינם נשמרים במערכת. ניתן לפרוס את הסכום למספר תשלומים ללא ריבית.` },
+    { q: 'מהי מדיניות הביטולים וההחזר הכספי?', a: `ניתן לבטל הזמנה ביוזמת הרוכש לא יאוחר מ־<strong>8 ימים קלנדריים</strong> לפני מועד האירוע. לדוגמה, לאירוע שמתקיים ב־9 בחודש, היום האחרון לביטול הוא ה־1 בחודש. בעת ביטול מנוכים דמי ביטול בשיעור <strong>5% מסכום ההזמנה, אך לא יותר מ־100 ₪</strong>. שינוי מועד, כמות כרטיסים או מקומות ישיבה מתבצע באמצעות ביטול ההזמנה הקיימת וביצוע הזמנה חדשה.` },
+    { q: 'מה קורה לכרטיסים שלי אם המופע בוטל או נדחה?', a: `הקופה תיצור עמכם קשר באמצעות הפרטים שמסרתם בהזמנה. באזור "ההזמנות שלי" תוכלו לאשר את השינוי או לבטל את ההזמנה. כאשר מופע מבוטל או משתנה ביוזמת המפיק, <strong>מלוא סכום ההזמנה מוחזר</strong>.` },
+    { q: 'לא הצלחתי להגיע לאירוע, האם מגיע לי החזר?', a: `אם האירוע התקיים כמתוכנן ולא הגעתם אליו מיוזמתכם, לא יינתן החזר בגין כרטיסים שלא נוצלו.` },
+    { q: 'האם יש הנחות לחיילים, סטודנטים או אזרחים ותיקים?', a: `כל סוגי הכרטיסים והמחירים, לרבות קטגוריות מוזלות כשהן מוצעות למופע מסוים, מוצגים ישירות בעמוד רכישת הכרטיסים של אותו מופע. המידע באתר אחיד לכל הרוכשים, ולכן מומלץ לבדוק את עמוד המופע הרלוונטי ב<a href="/">לוח ההופעות</a>, שם יופיעו כל אפשרויות הכרטיסים והמחירים המעודכנים.` },
+    { q: 'הזמנתי ולא קיבלתי אישור במייל, מה עליי לעשות?', a: `האישור נשלח באופן אוטומטי מיד לאחר התשלום. אם אינכם רואים אותו בתיבת הדואר הנכנס, בדקו בתיקיית דואר הזבל (SPAM). ייתכן גם שהוזנה כתובת מייל שגויה, ובמקרה כזה היכנסו לאזור "ההזמנות שלי" ושלחו את השובר למייל שלכם בשנית.` },
+    { q: 'האם אפשר לשנות פרטים בהזמנה?', a: `ניתן לשנות את פרטי מקבל הכרטיסים עד <strong>24 שעות</strong> לפני תחילת המופע, דרך אזור "ההזמנות שלי", או להעביר את אישור ההזמנה לאדם אחר. שינוי מקומות ישיבה בהזמנה ששולמה כרוך בביטול ההזמנה הקיימת וביצוע הזמנה חדשה.` },
+    { q: 'מתי כדאי להתקשר לשירות הלקוחות?', a: `כל המידע על המופעים והכרטיסים מופיע באתר בזמן אמת, כולל תאריכים, מיקום, מחירים וזמינות. שירות הלקוחות אינו מוקד בירורים, והטלפון מיועד בעיקר לתשלום עבור הזמנה שכבר בוצעה או לביטול הזמנה. לפני פנייה מומלץ לעיין בעמוד המופע, ב<a href="/רשימת-אמנים/">רשימת האמנים</a> או ב<a href="/">לוח ההופעות המלא</a>.` },
+  ];
+  const bodyHtml = `<p>ריכזנו עבורכם את התשובות לשאלות הנפוצות ביותר על רכישת כרטיסים, קבלתם, ביטולים והחזרים, בהתבסס על הנהלים הרשמיים של מערכת ההזמנות. כך תוכלו להזמין בביטחון ולדעת בדיוק למה לצפות בכל שלב.</p>
+${faq.map(f => `<details class="faq-item"><summary>${escText(f.q)}</summary><div class="faq-answer">${f.a}</div></details>`).join('\n')}
+<p class="faq-foot">לא מצאתם תשובה לשאלה שלכם? כל המידע המעודכן על כל מופע, כולל מחירים, מועדים וזמינות, מופיע בעמוד המופע עצמו ב<a href="/">לוח ההופעות</a>.</p>`;
+  return {
+    slug: 'שאלות-נפוצות-רכישת-כרטיסים',
+    schemaType: 'Article',
+    faq,
+    title: 'שאלות נפוצות על רכישת כרטיסים להופעות',
+    description: 'כל מה שצריך לדעת על רכישת כרטיסים, קבלתם, מדיניות ביטולים והחזרים, הנחות ויצירת קשר, לפי הנהלים הרשמיים של מערכת ההזמנות.',
+    date: '2026-08-20',
+    author: BRAND.nameHe,
+    image: '',
+    bodyHtml,
+  };
+}
+
 function buildMagazine(shows) {
   const mdArticles = loadMdArticles();
-  const generated = [weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows)].filter(Boolean);
+  const generated = [weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows), faqArticle()].filter(Boolean);
   const genSlugs = new Set(generated.map(a => a.slug));
   let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
   articles.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
@@ -2132,6 +2169,15 @@ span.btn-soldout{cursor:default}
 .mag-picks li{line-height:1.7;margin-bottom:4px}
 .mag-sect{color:var(--gold-d);font-weight:700;font-size:13px}
 .mag-buy{white-space:nowrap;font-weight:700}
+.faq-item{border:1px solid var(--line);border-radius:12px;background:var(--card);margin:0 0 12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.faq-item summary{cursor:pointer;list-style:none;padding:16px 20px;font-weight:700;font-size:17px;color:var(--ink);position:relative;padding-inline-start:46px}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::before{content:"+";position:absolute;inset-inline-start:18px;top:50%;transform:translateY(-50%);width:22px;height:22px;line-height:22px;text-align:center;background:var(--plum);color:#fff;border-radius:50%;font-weight:800;font-size:16px}
+.faq-item[open] summary::before{content:"–"}
+.faq-item[open] summary{color:var(--plum)}
+.faq-answer{padding:0 20px 18px 20px;line-height:1.75;color:var(--ink)}
+.faq-answer a{color:var(--plum);font-weight:700}
+.faq-foot{margin-top:22px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:15px}
 .mag-note{display:block;margin-top:10px;padding:10px 14px;background:var(--bg);border-right:3px solid var(--gold);border-radius:6px;color:var(--muted);font-style:italic;font-size:14px}
 .mag-back{margin-top:30px;padding-top:20px;border-top:1px solid var(--line)}
 .mag-back a{color:var(--plum);font-weight:700}
