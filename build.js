@@ -91,6 +91,14 @@ function affiliateUrl(link) {
   return BRAND.affiliateBase + (l.startsWith('/') ? l : '/' + l);
 }
 
+// זמינות: מועד אזל כשאין כרטיסים (tickets===0) או אין קישור רכישה
+function seanceSoldOut(s) { return Number(s.tickets) === 0 || !s.link; }
+// מופע אזל לחלוטין כשכל המועדים אזלו
+function showSoldOut(show) {
+  const ses = show.Seances || [];
+  return ses.length > 0 && ses.every(seanceSoldOut);
+}
+
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
@@ -350,7 +358,8 @@ function showCard(show) {
   const dates = [...new Set((show.Seances || []).map(s => s.date).filter(Boolean))];
   const halls = [...new Set((show.Seances || []).map(s => s.hall).filter(Boolean))];
   const nextDate = dates[0] || show.dateFrom;
-  return `<article class="card"
+  const sold = showSoldOut(show);
+  return `<article class="card${sold ? ' is-soldout' : ''}"
     data-name="${esc(show.name)}"
     data-section="${esc(show.section)}"
     data-city="${esc(cities.join('|'))}"
@@ -369,8 +378,8 @@ function showCard(show) {
       </p>
       <p class="card-announce">${escText(stripTags(show.announce || show.description))}</p>
       <div class="card-foot">
-        <span class="card-price">${priceLabel(show.priceMin, show.priceMax)}</span>
-        <a class="btn btn-primary" href="${esc(show._url)}">לפרטים וכרטיסים</a>
+        <span class="card-price">${sold ? '<span class="soldout">אזלו הכרטיסים</span>' : priceLabel(show.priceMin, show.priceMax)}</span>
+        ${sold ? `<a class="btn btn-soldout" href="${esc(show._url)}">אזלו הכרטיסים</a>` : `<a class="btn btn-primary" href="${esc(show._url)}">לפרטים וכרטיסים</a>`}
       </div>
     </div>
   </article>`;
@@ -1024,7 +1033,7 @@ function seanceRow(show, s) {
     <td data-th="עיר">${escText(s.city)}</td>
     <td data-th="אולם">${venueUrlByHall[s.hall] ? `<a href="${esc(venueUrlByHall[s.hall])}">${escText(s.hall)}</a>` : escText(s.hall)}</td>
     <td data-th="מחיר">${priceLabel(s.priceMin, s.priceMax)}</td>
-    <td data-th="הזמנה"><a class="btn btn-primary btn-sm" href="${esc(affiliateUrl(s.link))}" target="_blank" rel="noopener sponsored">להזמנת כרטיסים</a></td>
+    <td data-th="הזמנה">${seanceSoldOut(s) ? `<span class="soldout">אזלו הכרטיסים</span>` : `<a class="btn btn-primary btn-sm" href="${esc(affiliateUrl(s.link))}" target="_blank" rel="noopener sponsored">להזמנת כרטיסים</a>`}</td>
   </tr>`;
 }
 
@@ -1098,7 +1107,7 @@ function eventSchema(show) {
       url: affiliateUrl(s.link),
       price: s.priceMin,
       priceCurrency: 'ILS',
-      availability: 'https://schema.org/InStock',
+      availability: seanceSoldOut(s) ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
       validFrom: show.pubDate ? show.pubDate.replace(' ', 'T') : undefined,
     },
     organizer: { '@type': 'Organization', name: BRAND.nameHe, url: BRAND.domain },
@@ -1113,6 +1122,7 @@ function buildShow(show) {
   const rows = (show.Seances || []).map(s => seanceRow(show, s)).join('\n');
   const canonical = `${BRAND.domain}${show._url}`;
   const metaDesc = stripTags(show.description).slice(0, 155);
+  const sold = showSoldOut(show);
 
   const body = `
 <nav class="breadcrumb wrap">
@@ -1135,7 +1145,7 @@ function buildShow(show) {
           <div class="fact"><span class="fact-k">מיקום</span><span class="fact-v">${escText(cities.join(' · ') || 'יפורסם')}</span></div>
           <div class="fact"><span class="fact-k">מחיר</span><span class="fact-v">${priceLabel(show.priceMin, show.priceMax)}</span></div>
         </div>
-        <a class="btn btn-primary btn-lg" href="#seances">להזמנת כרטיסים</a>
+        ${sold ? `<span class="btn btn-soldout btn-lg">אזלו הכרטיסים</span>` : `<a class="btn btn-primary btn-lg" href="#seances">להזמנת כרטיסים</a>`}
       </div>
     </div>
   </div>
@@ -1149,9 +1159,9 @@ function buildShow(show) {
     <aside class="show-aside">
       <div class="aside-card">
         <span class="aside-price-k">מחיר כרטיס</span>
-        <span class="aside-price-v">${priceLabel(show.priceMin, show.priceMax)}</span>
-        <a class="btn btn-primary btn-block" href="#seances">בחירת מועד</a>
-        <p class="aside-note">רכישת כרטיסים</p>
+        <span class="aside-price-v${sold ? ' soldout' : ''}">${sold ? 'אזלו הכרטיסים' : priceLabel(show.priceMin, show.priceMax)}</span>
+        ${sold ? `<span class="btn btn-soldout btn-block">אזלו הכרטיסים</span>` : `<a class="btn btn-primary btn-block" href="#seances">בחירת מועד</a>`}
+        <p class="aside-note">${sold ? 'המופע אזל' : 'רכישת כרטיסים'}</p>
       </div>
     </aside>
   </div>
@@ -1363,6 +1373,11 @@ img{max-width:100%;display:block}
   display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:4px}
 .card-price{font-weight:800;color:var(--plum);font-size:16px}
+.soldout{color:#c0392b;font-weight:800}
+.btn-soldout{background:#ece5dd;color:#8a7f72;box-shadow:none}
+.btn-soldout:hover{transform:none;box-shadow:none}
+span.btn-soldout{cursor:default}
+.aside-price-v.soldout{color:#c0392b}
 .empty{text-align:center;color:var(--muted);padding:40px;font-size:18px}
 
 /* city select + load more */
