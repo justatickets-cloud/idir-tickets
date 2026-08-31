@@ -736,6 +736,142 @@ ${cards}
   return artistShows.length;
 }
 
+/* ============ Evergreen: עמודי אמנים ואולמות קבועים + קישוריות ============ */
+let ARTIST_REGISTRY = [];   // { name, slug, url, shows }
+let VENUE_REGISTRY = [];    // { hall, slug, url, shows, city, address }
+const artistUrlByName = {}; // name -> /artist/slug/
+const venueUrlByHall = {};  // hall -> /venues/slug/
+
+// מקצה מרשמי אמנים ואולמות (לפני buildShow, כדי לאפשר קישוריות פנימית)
+function assignHubs(shows) {
+  // אמנים: לפי שמות "נקיים"
+  const byArtist = {};
+  shows.forEach(s => { if (isCleanArtist(s.name)) (byArtist[s.name] = byArtist[s.name] || []).push(s); });
+  const aUsed = new Set();
+  ARTIST_REGISTRY = Object.keys(byArtist).sort((a, b) => a.localeCompare(b, 'he')).map(name => {
+    let slug = slugify(name) || 'artist';
+    if (aUsed.has(slug)) slug += '-' + byArtist[name][0].id;
+    aUsed.add(slug);
+    const url = `/artist/${slug}/`;
+    artistUrlByName[name] = url;
+    return { name, slug, url, shows: byArtist[name] };
+  });
+
+  // אולמות: כל אולם עם 2+ מופעים (למניעת עמודים דלים)
+  const byHall = {};
+  shows.forEach(s => [...new Set((s.Seances || []).map(z => z.hall).filter(Boolean))]
+    .forEach(h => (byHall[h] = byHall[h] || []).push(s)));
+  const vUsed = new Set();
+  VENUE_REGISTRY = Object.keys(byHall).filter(h => byHall[h].length >= 2)
+    .sort((a, b) => a.localeCompare(b, 'he')).map(hall => {
+      let slug = slugify(hall) || 'venue';
+      if (vUsed.has(slug)) slug += '-' + byHall[hall][0].id;
+      vUsed.add(slug);
+      const url = `/venues/${slug}/`;
+      venueUrlByHall[hall] = url;
+      // כתובת/עיר מייצגת מתוך מועד באולם זה
+      let city = '', address = '';
+      for (const s of byHall[hall]) {
+        const se = (s.Seances || []).find(z => z.hall === hall);
+        if (se) { city = se.city || city; address = se.address || address; if (city) break; }
+      }
+      return { hall, slug, url, shows: byHall[hall], city, address };
+    });
+}
+
+function buildArtistPages() {
+  ARTIST_REGISTRY.forEach(a => {
+    const canonical = `${BRAND.domain}${a.url}`;
+    const image = (a.shows.find(s => s.image) || {}).image || '';
+    const cards = a.shows.map(showCard).join('\n');
+    const crumb = breadcrumbSchema([
+      { name: 'בית', url: BRAND.domain + '/' },
+      { name: 'אמנים', url: BRAND.domain + '/רשימת-אמנים/' },
+      { name: a.name, url: canonical },
+    ]);
+    const profile = {
+      '@context': 'https://schema.org',
+      '@type': 'ProfilePage',
+      mainEntity: {
+        '@type': 'MusicGroup',
+        name: a.name,
+        url: canonical,
+        image: image || undefined,
+      },
+    };
+    const empty = `<div class="hub-empty">
+      <p>אין כרגע מופעים קרובים של ${escText(a.name)}. האמן צפוי לחזור בקרוב, כדאי לשוב ולבדוק.</p>
+      <ul class="hub-empty-links"><li><a href="/">כל המופעים</a></li><li><a href="/רשימת-אמנים/">כל האמנים</a></li></ul>
+    </div>`;
+    const body = `
+<article class="hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <a href="/רשימת-אמנים/">אמנים</a> <span>›</span> <span class="current">${escText(a.name)}</span></nav>
+    <h1 class="hub-title">${escText(a.name)} כרטיסים והופעות</h1>
+    <p class="hub-intro">כל ההופעות והמופעים הקרובים של ${escText(a.name)} בישראל. מועדים, ערים ומחירים מעודכנים, ורכישת כרטיסים מאובטחת במקום אחד.</p>
+    <div class="results-head"><span class="results-count">${a.shows.length} מופעים</span></div>
+    ${a.shows.length ? `<div class="grid">\n${cards}\n</div>` : empty}
+  </div>
+</article>`;
+    const html = page({
+      title: `${a.name} כרטיסים למופעים והופעות | איידיר כרטיסים`,
+      description: `כל ההופעות והמופעים הקרובים של ${a.name} בישראל. מועדים, מחירים וכרטיסים לרכישה מאובטחת.`,
+      canonical,
+      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(profile)}</script>` + (image ? `\n<meta property="og:image" content="${esc(image)}">` : ''),
+      body,
+    });
+    const dir = path.join(BRAND.outDir, 'artist', a.slug);
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+  });
+  return ARTIST_REGISTRY.length;
+}
+
+function buildVenuePages() {
+  VENUE_REGISTRY.forEach(v => {
+    const canonical = `${BRAND.domain}${v.url}`;
+    const cards = v.shows.map(showCard).join('\n');
+    const crumb = breadcrumbSchema([
+      { name: 'בית', url: BRAND.domain + '/' },
+      { name: v.hall, url: canonical },
+    ]);
+    const placeSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'Place',
+      name: v.hall,
+      url: canonical,
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: v.address || v.hall,
+        addressLocality: v.city || undefined,
+        addressCountry: 'IL',
+      },
+    };
+    const loc = [v.address, v.city].filter(Boolean).join(', ');
+    const body = `
+<article class="hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span>אולמות</span> <span>›</span> <span class="current">${escText(v.hall)}</span></nav>
+    <h1 class="hub-title">${escText(v.hall)}</h1>
+    <p class="hub-intro">לוח המופעים והאירועים הקרובים ב${escText(v.hall)}${loc ? ' · ' + escText(loc) : ''}. מועדים, מחירים וכרטיסים מעודכנים בזמן אמת.</p>
+    <div class="results-head"><span class="results-count">${v.shows.length} מופעים</span></div>
+    ${v.shows.length ? `<div class="grid">\n${cards}\n</div>` : hubEmpty()}
+  </div>
+</article>`;
+    const html = page({
+      title: `${v.hall} לוח מופעים וכרטיסים | איידיר כרטיסים`,
+      description: `כל האירועים והמופעים הקרובים ב${v.hall}${v.city ? ' ב' + v.city : ''}. מועדים, מחירים וכרטיסים לרכישה מאובטחת.`,
+      canonical,
+      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(placeSchema)}</script>`,
+      body,
+    });
+    const dir = path.join(BRAND.outDir, 'venues', v.slug);
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+  });
+  return VENUE_REGISTRY.length;
+}
+
 /* ------------------------------ דף הבית -------------------------------- */
 function buildIndex(shows) {
   const sections = [...new Set(shows.map(s => s.section).filter(Boolean))];
@@ -886,7 +1022,7 @@ function seanceRow(show, s) {
     <td data-th="תאריך">${formatDate(s.date)}</td>
     <td data-th="שעה">${formatTime(s.time)}</td>
     <td data-th="עיר">${escText(s.city)}</td>
-    <td data-th="אולם">${escText(s.hall)}</td>
+    <td data-th="אולם">${venueUrlByHall[s.hall] ? `<a href="${esc(venueUrlByHall[s.hall])}">${escText(s.hall)}</a>` : escText(s.hall)}</td>
     <td data-th="מחיר">${priceLabel(s.priceMin, s.priceMax)}</td>
     <td data-th="הזמנה"><a class="btn btn-primary btn-sm" href="${esc(affiliateUrl(s.link))}" target="_blank" rel="noopener sponsored">להזמנת כרטיסים</a></td>
   </tr>`;
@@ -993,6 +1129,7 @@ function buildShow(show) {
         <span class="pill">${escText(show.section)}</span>
         <h1 class="show-title">${escText(show.name)}</h1>
         <p class="show-announce">${escText(show.announce || '')}</p>
+        ${artistUrlByName[show.name] ? `<p class="show-artist-link"><a href="${esc(artistUrlByName[show.name])}">כל ההופעות של ${escText(show.name)} ›</a></p>` : ''}
         <div class="show-facts">
           <div class="fact"><span class="fact-k">מועדים</span><span class="fact-v">${formatDate(show.dateFrom)}</span></div>
           <div class="fact"><span class="fact-k">מיקום</span><span class="fact-v">${escText(cities.join(' · ') || 'יפורסם')}</span></div>
@@ -1080,6 +1217,8 @@ function buildSitemap(shows) {
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
     ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
     { loc: `${BRAND.domain}/רשימת-אמנים/`, pri: '0.7' },
+    ...ARTIST_REGISTRY.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.7' })),
+    ...VENUE_REGISTRY.map(v => ({ loc: `${BRAND.domain}${encodeURI(v.url)}`, pri: '0.7' })),
     ...shows.map(s => ({ loc: `${BRAND.domain}${encodeURI(s._url)}`, pri: '0.8' })),
     ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
@@ -1252,7 +1391,10 @@ img{max-width:100%;display:block}
 .pill{display:inline-block;background:rgba(109,31,75,.1);color:var(--plum);font-weight:700;
   padding:6px 14px;border-radius:999px;font-size:13px;margin-bottom:12px}
 .show-title{font-size:clamp(24px,4vw,36px);margin:0 0 10px;line-height:1.2;font-weight:800}
-.show-announce{color:var(--muted);font-size:18px;margin:0 0 20px}
+.show-announce{color:var(--muted);font-size:18px;margin:0 0 12px}
+.show-artist-link{margin:0 0 18px}
+.show-artist-link a{color:var(--plum);font-weight:700;font-size:15px}
+.show-artist-link a:hover{text-decoration:underline}
 .show-facts{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:22px}
 .fact{display:flex;flex-direction:column;gap:2px}
 .fact-k{color:var(--muted);font-size:13px;font-weight:600}
@@ -1637,6 +1779,7 @@ function run() {
   const scope = BRAND.limit > 0 ? `${shows.length} מופעים (מגבלת פיילוט)` : `${shows.length} מופעים (מלא)`;
   console.log(`· לעיבוד: ${scope}`);
   assignShowUrls(shows);
+  assignHubs(shows);
 
   if (fs.existsSync(BRAND.outDir)) {
     fs.rmSync(BRAND.outDir, { recursive: true, force: true });
@@ -1651,6 +1794,8 @@ function run() {
   const hubCounts = buildHubPages(shows);
   const cityCounts = buildCityPages(shows);
   const artistCount = buildArtistsIndex(shows);
+  const artistPageCount = buildArtistPages();
+  const venuePageCount = buildVenuePages();
   buildSitemap(shows);
   buildAdsTxt();
   buildRedirects(shows);
@@ -1669,13 +1814,15 @@ function run() {
   console.log(`  - dist/[עמודי ערים SEO]  (${CITY_PAGES.length}):`);
   CITY_PAGES.forEach(p => console.log(`      ${p.slug}/  (${cityCounts[p.slug]} מופעים)`));
   console.log(`  - dist/רשימת-אמנים/index.html  (${artistCount} אמנים)`);
-  console.log(`  - dist/sitemap.xml  (${shows.length + 2 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length} כתובות)`);
+  console.log(`  - dist/artist/[slug]/  (${artistPageCount} עמודי אמנים קבועים)`);
+  console.log(`  - dist/venues/[slug]/  (${venuePageCount} עמודי אולמות קבועים)`);
+  console.log(`  - dist/sitemap.xml  (${shows.length + 2 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length + artistPageCount + venuePageCount} כתובות)`);
   console.log('  - dist/robots.txt, dist/ads.txt');
   console.log('  - dist/assets/styles.css, app.js, accessibility.js');
   console.log('────────────────────────────────────────');
   console.log(`  מופעים:   ${shows.length}`);
   console.log(`  מועדים:   ${totalSeances}`);
-  console.log(`  סה"כ דפי HTML: ${shows.length + 2 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length}`);
+  console.log(`  סה"כ דפי HTML: ${shows.length + 2 + STATIC_SLUGS.length + HUB_PAGES.length + CITY_PAGES.length + artistPageCount + venuePageCount}`);
   console.log(`  זמן ריצה: ${secs} שניות`);
   console.log('✓ הבנייה המלאה הושלמה.');
 }
