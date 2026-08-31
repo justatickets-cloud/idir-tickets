@@ -887,6 +887,7 @@ function buildVenuePages() {
 /* ==== שכבה חדשה לצד אתר הכרטיסים; אינה נוגעת בלוגיקה/עמודים קיימים ==== */
 /* ==================================================================== */
 let MAGAZINE_ARTICLES = [];
+let NEWS_ARTICLES = [];
 let MAGAZINE_REDIRECTS = []; // { from: oldSlug, to: newSlug } — להפניית 301 מכתבות שהשם שלהן שונה
 
 // פענוח frontmatter (--- key: value ---) מקובץ Markdown
@@ -1244,6 +1245,7 @@ function buildMagazine(shows) {
     <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">מגזין</span></nav>
     <h1 class="hub-title">מגזין תרבות ובילויים</h1>
     <p class="hub-intro">מדריכי בילוי, המלצות לסוף השבוע וכתבות תרבות של איידיר כרטיסים. כל מה שכדאי לדעת על עולם ההופעות, ההצגות והתרבות בישראל.</p>
+    <nav class="mag-subnav"><a class="mag-subnav-link" href="/magazine/news/">📰 חדשות ועדכונים שוטפים ›</a></nav>
     <div class="mag-grid">${cardsHtml}</div>
   </div>
 </article>`;
@@ -1261,6 +1263,185 @@ function buildMagazine(shows) {
   MAGAZINE_ARTICLES = articles;
   MAGAZINE_REDIRECTS = articles.filter(a => a.redirectFrom).map(a => ({ from: a.redirectFrom, to: a.slug }));
   return articles.length;
+}
+
+/* ===================== מנוע חדשות ועדכונים (News Engine) ===================
+   שכבה עצמאית: כתבות אייטם עיתונאיות קצרות על סצנת התרבות והבידור, מעוגנות
+   בנתוני הפיד כדי שהקישורים יהיו חיים והמידע אמיתי. לא רשימת מופעים גולמית. */
+
+// המרת pubDate ("2026-08-31 14:58:45") ליום; חלון "טרי" יחסית ליום העדכני בפיד
+function newsPubDay(s) { return String(s.pubDate || '').slice(0, 10); }
+function firstSentence(txt) {
+  const t = String(txt || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const m = t.match(/^(.{30,190}?[.!?…])(\s|$)/);
+  return m ? m[1].trim() : (t.length > 170 ? t.slice(0, 167).trim() + '…' : t);
+}
+function newsKicker(section) {
+  const s = section || '';
+  if (/ילד|קרקס|סיפור|משפח/.test(s)) return 'חדשות ילדים ומשפחה';
+  if (/סטנד|בידור|קומ/.test(s)) return 'חדשות בידור';
+  if (/מחול|בלט/.test(s)) return 'חדשות מחול';
+  if (/קלאסי|תזמור|אופרה|בארוק/.test(s)) return 'חדשות מוזיקה קלאסית';
+  if (/מחזמר|תיאטרון|הצג|מחזה/.test(s)) return 'חדשות תיאטרון';
+  return 'חדשות מוזיקה';
+}
+function firstUpcomingSeance(s) {
+  const today = ymdStr(israelToday());
+  const list = [...(s.Seances || [])].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return list.find(z => String(z.date) >= today && z.link) || list.find(z => z.link) || list[0] || {};
+}
+
+// יצירת פריטי חדשות עריכתיים מתוך הפיד (הכרזות טריות + כותרות מגמה)
+function newsItems(shows) {
+  const items = [];
+  const withPub = shows.filter(s => s.pubDate && s.image && (s.Seances || []).length);
+  if (!withPub.length) return items;
+  const maxPub = withPub.reduce((m, s) => newsPubDay(s) > m ? newsPubDay(s) : m, '0000-00-00');
+  const thr = new Date(maxPub + 'T00:00:00'); thr.setDate(thr.getDate() - 21);
+  const thrStr = ymdStr(thr);
+  const fresh = withPub
+    .filter(s => newsPubDay(s) >= thrStr)
+    .sort((a, b) => String(b.pubDate).localeCompare(String(a.pubDate)))
+    .slice(0, 12);
+
+  // כתבות אייטם: הכרזה על מופע שנחשף/נפתח למכירה
+  for (const s of fresh) {
+    const se = firstUpcomingSeance(s);
+    const kicker = newsKicker(s.section);
+    const city = se.city ? ` ב${se.city}` : '';
+    const tpls = [
+      `${s.name} עולה לבמה${city}: הכרטיסים נפתחו למכירה`,
+      `הוכרז: ${s.name} מגיע לבמה${city}`,
+      `${s.name} יוצא לדרך${city} — פתיחת מכירת כרטיסים`,
+    ];
+    const title = tpls[Number(s.id || 0) % tpls.length];
+    const lede = firstSentence(s.announce || s.description) || `${s.name} מצטרף ללוח ההופעות המתעדכן שלנו.`;
+    const when = se.date ? `${formatDate(se.date)}${se.time ? ` בשעה ${formatTime(se.time)}` : ''}` : '';
+    const venue = se.hall ? escText(se.hall + (se.city ? `, ${se.city}` : '')) : (se.city ? escText(se.city) : '');
+    const v = VENUE_REGISTRY.find(x => se.hall && x.hall === se.hall && x.shows.length > 0);
+    const venueHtml = v ? `<a href="${esc(v.url)}">${venue}</a>` : venue;
+    const buy = seanceSoldOut(se) ? '<span class="soldout">אזלו הכרטיסים</span>'
+      : (se.link ? `<a class="news-cta" href="${esc(affiliateUrl(se.link))}" target="_blank" rel="noopener sponsored">להזמנת כרטיסים ›</a>` : '');
+    const bodyHtml = `<p class="news-lede">${escText(lede)}</p>
+<p>${venueHtml ? `המופע צפוי לעלות ב${venueHtml}` : 'המופע'}${when ? ` ב־${escText(when)}` : ''}, והכרטיסים כבר פתוחים להזמנה. לכל המועדים, המחירים והזמנת מקומות אפשר לעבור לעמוד המופע המלא: <a href="${esc(s._url)}"><strong>${escText(s.name)}</strong></a>.</p>
+<p>${buy}</p>
+<p class="news-related">עוד בקטגוריה: <a href="/">לוח ההופעות המלא</a> · <a href="/magazine/">כל כתבות המגזין</a></p>`;
+    items.push({
+      slug: slugify(s.name),
+      kicker,
+      title,
+      date: newsPubDay(s),
+      description: `${kicker}: ${lede}`.slice(0, 155),
+      image: s.image,
+      bodyHtml,
+    });
+  }
+
+  // כותרת מגמה: עונת 2027 מתמלאת
+  const c2027 = shows.filter(s => (s.Seances || []).some(z => String(z.date).startsWith('2027'))).length;
+  if (c2027 >= 3) {
+    items.unshift({
+      slug: 'לוח-2027-נפתח-למכירה',
+      kicker: 'כותרת חמה',
+      title: `לוח 2027 ממריא: ${c2027} מופעים כבר פתוחים להזמנה`,
+      date: maxPub,
+      description: `עונת התרבות של 2027 כבר כאן: ${c2027} מופעים ואירועים נפתחו להזמנה מוקדמת.`,
+      image: (shows.find(s => (s.Seances || []).some(z => String(z.date).startsWith('2027')) && s.image) || {}).image || '',
+      bodyHtml: `<p class="news-lede">עונת התרבות של 2027 כבר מתחילה להתמלא, ומעריצים שאוהבים לתכנן מראש כבר יכולים לתפוס מקום. ${c2027} מופעים ואירועים נפתחו להזמנה מוקדמת במערכת שלנו.</p>
+<p>מבכורות בלט בינלאומיות ועד קונצרטי ענק, פסטיבלים והפקות מקור — ההיצע לשנה הבאה הולך וגדל מדי שבוע. ההיערכות המוקדמת משתלמת: המקומות הטובים והמחירים האטרקטיביים נתפסים ראשונים.</p>
+<p>לסקירה המלאה קראו את <a href="/magazine/${encodeURI('הופעות-החובה-והאירועים-הגדולים-של-2027')}/">הופעות החובה של 2027</a> ואת <a href="/magazine/${encodeURI('הפסטיבלים-והאירועים-הגדולים-של-שנת-2027')}/">מדריך הפסטיבלים</a>, או עברו ישירות ללוח <a href="/הופעות-2027.html"><strong>הופעות 2027</strong></a>.</p>
+<p class="news-related"><a href="/magazine/">כל כתבות המגזין</a></p>`,
+    });
+  }
+  return items;
+}
+
+// תבנית עמוד חדשות ייעודית (News Layout) + סכמת NewsArticle
+function newsArticlePage(a) {
+  const canonical = `${BRAND.domain}${a.url}`;
+  const crumb = breadcrumbSchema([
+    { name: 'בית', url: BRAND.domain + '/' },
+    { name: 'מגזין', url: BRAND.domain + '/magazine/' },
+    { name: 'חדשות', url: BRAND.domain + '/magazine/news/' },
+    { name: a.title, url: canonical },
+  ]);
+  const schema = {
+    '@context': 'https://schema.org', '@type': 'NewsArticle',
+    headline: a.title, description: a.description,
+    datePublished: a.date, dateModified: a.date,
+    image: a.image || undefined,
+    author: { '@type': 'Organization', name: BRAND.nameHe, url: BRAND.domain },
+    publisher: { '@type': 'Organization', name: BRAND.nameHe, url: BRAND.domain, logo: { '@type': 'ImageObject', url: BRAND.domain + '/assets/logo.svg' } },
+    mainEntityOfPage: canonical,
+  };
+  const body = `
+<article class="news-article">
+  <div class="wrap news-wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <a href="/magazine/">מגזין</a> <span>›</span> <a href="/magazine/news/">חדשות</a> <span>›</span> <span class="current">${escText(a.title)}</span></nav>
+    <span class="news-kicker">${escText(a.kicker || 'חדשות')}</span>
+    <h1 class="news-headline">${escText(a.title)}</h1>
+    <p class="news-dateline">עודכן ${formatDate(a.date)} · ${escText(BRAND.nameHe)}</p>
+    ${a.image ? `<figure class="news-hero"><img src="${esc(a.image)}" alt="${esc(a.title)}"></figure>` : ''}
+    <div class="news-body rte">${a.bodyHtml}</div>
+    <p class="news-back"><a href="/magazine/news/">‹ לכל החדשות</a></p>
+  </div>
+</article>`;
+  const html = page({
+    title: `${a.title} | חדשות איידיר כרטיסים`,
+    description: a.description,
+    canonical,
+    head: crumb + `\n<script type="application/ld+json">${JSON.stringify(schema)}</script>` + (a.image ? `\n<meta property="og:image" content="${esc(a.image)}">` : ''),
+    body,
+  });
+  const dir = path.join(BRAND.outDir, 'magazine', 'news', a.slug);
+  ensureDir(dir);
+  fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+}
+
+function buildNews(shows) {
+  const items = newsItems(shows);
+  const used = new Set();
+  items.forEach(a => {
+    let s = a.slug || 'news';
+    if (used.has(s)) s += '-' + (used.size);
+    used.add(s);
+    a.slug = s;
+    a.url = `/magazine/news/${s}/`;
+  });
+  items.forEach(newsArticlePage);
+
+  const cardsHtml = items.map(a => `
+    <article class="news-card">
+      <a class="news-card-media" href="${esc(a.url)}">${a.image ? `<img loading="lazy" src="${esc(a.image)}" alt="${esc(a.title)}">` : ''}</a>
+      <div class="news-card-body">
+        <span class="news-card-kicker">${escText(a.kicker || 'חדשות')}</span>
+        <h3 class="news-card-title"><a href="${esc(a.url)}">${escText(a.title)}</a></h3>
+        <span class="news-card-date">${formatDate(a.date)}</span>
+      </div>
+    </article>`).join('\n');
+  const idxBody = `
+<article class="hub news-hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <a href="/magazine/">מגזין</a> <span>›</span> <span class="current">חדשות</span></nav>
+    <h1 class="hub-title">חדשות ועדכונים</h1>
+    <p class="hub-intro">כל החדשות החמות מעולם ההופעות, ההצגות והתרבות בישראל: הכרזות על מופעים חדשים, פתיחת מכירות כרטיסים ועדכוני לוח. מתעדכן באופן שוטף.</p>
+    <div class="news-grid">${cardsHtml || '<p>אין כרגע עדכונים חדשים. חזרו בקרוב.</p>'}</div>
+  </div>
+</article>`;
+  const idxHtml = page({
+    title: 'חדשות ועדכונים | איידיר כרטיסים',
+    description: 'חדשות ועדכונים שוטפים מעולם ההופעות והתרבות בישראל: הכרזות מופעים, פתיחת מכירות כרטיסים ועדכוני לוח.',
+    canonical: BRAND.domain + '/magazine/news/',
+    head: breadcrumbSchema([{ name: 'בית', url: BRAND.domain + '/' }, { name: 'מגזין', url: BRAND.domain + '/magazine/' }, { name: 'חדשות', url: BRAND.domain + '/magazine/news/' }]),
+    body: idxBody,
+  });
+  const nd = path.join(BRAND.outDir, 'magazine', 'news');
+  ensureDir(nd);
+  fs.writeFileSync(path.join(nd, 'index.html'), idxHtml, 'utf8');
+
+  NEWS_ARTICLES = items;
+  return items.length;
 }
 
 /* ------------------------------ דף הבית -------------------------------- */
@@ -1613,6 +1794,8 @@ function buildSitemap(shows) {
     ...VENUE_REGISTRY.map(v => ({ loc: `${BRAND.domain}${encodeURI(v.url)}`, pri: '0.7' })),
     { loc: `${BRAND.domain}/magazine/`, pri: '0.7' },
     ...MAGAZINE_ARTICLES.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.6' })),
+    { loc: `${BRAND.domain}/magazine/news/`, pri: '0.7' },
+    ...NEWS_ARTICLES.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.6' })),
     ...shows.map(s => ({ loc: `${BRAND.domain}${encodeURI(s._url)}`, pri: '0.8' })),
     ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
   ];
@@ -1896,6 +2079,38 @@ span.btn-soldout{cursor:default}
 .mag-card-desc{color:var(--muted);font-size:14px;margin:0;flex:1;
   display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .mag-card-link{color:var(--plum);font-weight:700;font-size:14px;margin-top:2px}
+.mag-subnav{margin:-6px 0 22px}
+.mag-subnav-link{display:inline-block;background:var(--plum);color:#fff;font-weight:700;font-size:15px;padding:9px 18px;border-radius:999px;text-decoration:none;box-shadow:var(--shadow-sm)}
+.mag-subnav-link:hover{background:var(--plum-d)}
+
+/* News Layout — מדור חדשות */
+.news-hub{padding-block:6px 50px}
+.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:22px;margin-top:10px}
+.news-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow-sm);transition:transform .15s ease,box-shadow .2s ease}
+.news-card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+.news-card-media{display:block;aspect-ratio:16/9;overflow:hidden;background:#efe9e2}
+.news-card-media img{width:100%;height:100%;object-fit:cover}
+.news-card-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:7px;flex:1}
+.news-card-kicker{color:var(--gold-d);font-size:11.5px;font-weight:800;letter-spacing:.5px}
+.news-card-title{font-size:17px;line-height:1.35;margin:0;flex:1}
+.news-card-title a{color:var(--ink);text-decoration:none}
+.news-card-title a:hover{color:var(--plum)}
+.news-card-date{color:var(--muted);font-size:12.5px;font-weight:600}
+.news-article{padding-block:6px 56px}
+.news-wrap{max-width:720px}
+.news-article .breadcrumb{padding-block:18px 2px}
+.news-kicker{display:inline-block;background:var(--gold);color:#fff;font-size:12.5px;font-weight:800;letter-spacing:.5px;padding:4px 12px;border-radius:999px;margin-bottom:8px}
+.news-headline{font-size:clamp(26px,4.5vw,38px);font-weight:800;line-height:1.22;margin:6px 0 8px}
+.news-dateline{color:var(--muted);font-size:14px;font-weight:600;margin:0 0 18px}
+.news-hero{margin:0 0 22px;border-radius:var(--radius);overflow:hidden}
+.news-hero img{width:100%;height:auto;display:block}
+.news-lede{font-size:19px;line-height:1.6;font-weight:600;color:var(--ink)}
+.news-body.rte p{margin:0 0 14px;line-height:1.75}
+.news-cta{display:inline-block;background:var(--plum);color:#fff;font-weight:800;padding:11px 22px;border-radius:999px;text-decoration:none;box-shadow:var(--shadow-sm)}
+.news-cta:hover{background:var(--plum-d)}
+.news-related{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-top:20px}
+.news-back{margin-top:22px}
+.news-back a{color:var(--plum);font-weight:700;text-decoration:none}
 
 .mag-article{padding-block:6px 56px}
 .mag-wrap{max-width:760px}
@@ -2242,6 +2457,7 @@ function run() {
   const artistPageCount = buildArtistPages();
   const venuePageCount = buildVenuePages();
   const magazineCount = buildMagazine(shows);
+  const newsCount = buildNews(shows);
   buildSitemap(shows);
   buildAdsTxt();
   buildRedirects(shows);
