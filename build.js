@@ -970,6 +970,81 @@ function weekendArticle(shows) {
   };
 }
 
+// מחולל מדריך ילדים ומשפחה לסוף השבוע (אוטומטי, מחולק לפי ערים)
+const KIDS_SECTIONS = new Set(['הצגות ילדים', 'קונצרטים לילדים', 'שעת סיפור', 'קרקס', 'אטרקציות']);
+function familyWeekendArticle(shows) {
+  const now = israelToday();
+  const day = now.getDay();
+  const toThu = (day >= 4) ? -(day - 4) : (4 - day);
+  const thu = addDays(now, toThu);
+  const wk = [ymdStr(thu), ymdStr(addDays(thu, 1)), ymdStr(addDays(thu, 2))];
+  const wkSet = new Set(wk);
+  const picks = shows.filter(s => KIDS_SECTIONS.has(s.section) && (s.Seances || []).some(z => wkSet.has(z.date)));
+  if (!picks.length) return null;
+  const byCity = {};
+  picks.forEach(s => {
+    const se = (s.Seances || []).find(z => wkSet.has(z.date)) || {};
+    const city = se.city || 'שונות';
+    (byCity[city] = byCity[city] || []).push({ s, se });
+  });
+  const range = `${formatDate(wk[0])} עד ${formatDate(wk[2])}`;
+  const sections = Object.keys(byCity).sort((a, b) => a.localeCompare(b, 'he')).map(city => {
+    const items = byCity[city].map(({ s, se }) => {
+      const buy = seanceSoldOut(se) ? ' <span class="soldout">אזלו הכרטיסים</span>'
+        : ` <a class="mag-buy" href="${esc(affiliateUrl(se.link))}" target="_blank" rel="noopener sponsored">להזמנת כרטיסים ›</a>`;
+      return `<li><a href="${esc(s._url)}"><strong>${escText(s.name)}</strong></a> — ${formatDate(se.date)}${se.hall ? ' · ' + escText(se.hall) : ''}.${buy}</li>`;
+    }).join('\n');
+    return `<h2>${escText(city)}</h2>\n<ul class="mag-picks">${items}</ul>`;
+  }).join('\n');
+  return {
+    slug: 'family-events-weekend',
+    title: `מדריך ילדים ומשפחה לסוף השבוע — ${range}`,
+    description: `כל מופעי הילדים והמשפחה לסוף השבוע הקרוב בישראל (${range}), מחולקים לפי ערים. כרטיסים ומועדים מעודכנים.`,
+    date: ymdStr(now),
+    author: BRAND.nameHe,
+    image: (picks.find(s => s.image) || {}).image || '',
+    bodyHtml: `<p>מחפשים בילוי לכל המשפחה בסוף השבוע? ריכזנו את כל הצגות הילדים, מופעי המשפחה והאטרקציות שמתקיימים בין ${range}, מחולקים לפי עיר כדי שתמצאו בקלות מה קורה לידכם.</p>\n${sections}\n<p>לכל אירועי סוף השבוע לכל הגילאים, בקרו ב<a href="/הופעות-בסוף-השבוע.html">עמוד הופעות סוף השבוע</a>.</p>`,
+  };
+}
+
+// מדריך אולמות נצחי (Evergreen) — מקשר לעמודי האולמות הייעודיים
+function venuesSeatingGuide() {
+  const top = [...VENUE_REGISTRY].sort((a, b) => b.shows.length - a.shows.length).slice(0, 10);
+  const venueLinks = top.map(v =>
+    `<li><a href="${esc(v.url)}"><strong>${escText(v.hall)}</strong></a>${v.city ? ' — ' + escText(v.city) : ''} · ${v.shows.length} מופעים קרובים</li>`).join('\n');
+  const image = (top[0] && (top[0].shows.find(s => s.image) || {}).image) || '';
+  const bodyHtml = `<p>בחירת מקום הישיבה הנכון יכולה לשנות לגמרי את חוויית ההופעה או ההצגה. ריכזנו עבורכם מדריך מקצועי שיעזור לבחור נכון באולמות ובהיכלי התרבות המובילים בישראל.</p>
+
+<h2>עקרונות בחירת מקום ישיבה</h2>
+
+<h3>קרוב לבמה (שורות ראשונות)</h3>
+<p>השורות הקדמיות מעניקות חוויה אינטימית וקרבה מרבית לאמן, ומתאימות במיוחד להופעות סולו, סטנד אפ ומופעי מחול. החיסרון: לעיתים זווית הצפייה תלולה ובאולמות גדולים קשה לראות את התמונה הכוללת.</p>
+
+<h3>מרכז האולם (השורות האמצעיות)</h3>
+<p>לרוב האיזון הטוב ביותר: זווית צפייה נוחה, מרחק אופטימלי מהבמה, ובקונצרטים גם איכות הסאונד הטובה ביותר, שכן המערכת מכוונת בדרך כלל למרכז. זו הבחירה המומלצת למרבית המופעים.</p>
+
+<h3>יציע ומקומות אחוריים</h3>
+<p>מציעים מבט כולל ורחב על הבמה במחיר נוח יותר, ומצוינים למחזות זמר, אופרה ומופעים חזותיים גדולים שבהם חשוב לראות את כל התמונה. באולמות מדורגים הראייה מצוינת גם מלמעלה.</p>
+
+<h2>טיפים לפי סוג מתחם</h2>
+<p><strong>אולמות פתוחים ואמפיתיאטרונים</strong> (כמו אמפי קיסריה): הגיעו מוקדם, הצטיידו בלבוש חם לשעות הערב, ושקלו מקומות מרכזיים לאקוסטיקה הטובה ביותר. <strong>היכלי תרבות סגורים</strong> (כמו היכל התרבות תל אביב): כמעט בכל מקום הראייה והסאונד טובים, המרכז עדיף לקונצרטים. <strong>מועדוני מופעים</strong> (כמו זאפה): האווירה אינטימית, ולעיתים יש מקומות עמידה, כדאי לבדוק מראש.</p>
+
+<h2>האולמות המובילים אצלנו</h2>
+<p>לחצו על כל אולם כדי לראות את לוח המופעים המלא והקרוב שלו:</p>
+<ul class="mag-picks">${venueLinks}</ul>
+<p>מחפשים מופע ספציפי? בקרו ב<a href="/">עמוד הבית</a> וסננו לפי אולם, עיר או תאריך.</p>`;
+  return {
+    slug: 'venues-seating-guide',
+    schemaType: 'Article',
+    title: 'מדריך האולמות: איך לבחור מקומות ישיבה באולמות המובילים בישראל',
+    description: 'מדריך מקצועי לבחירת מקומות ישיבה באולמות ובהיכלי התרבות המובילים בישראל, עם טיפים לפי סוג מתחם וקישורים ללוחות המופעים.',
+    date: '2026-08-15',
+    author: BRAND.nameHe,
+    image,
+    bodyHtml,
+  };
+}
+
 function magArticlePage(a) {
   const canonical = `${BRAND.domain}${a.url}`;
   const crumb = breadcrumbSchema([
@@ -979,7 +1054,7 @@ function magArticlePage(a) {
   ]);
   const articleSchema = {
     '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
+    '@type': a.schemaType || 'NewsArticle',
     headline: a.title,
     description: a.description,
     datePublished: a.date,
@@ -1013,9 +1088,10 @@ function magArticlePage(a) {
 }
 
 function buildMagazine(shows) {
-  let articles = loadMdArticles();
-  const wk = weekendArticle(shows);
-  if (wk) articles = [wk, ...articles.filter(a => a.slug !== wk.slug)];
+  const mdArticles = loadMdArticles();
+  const generated = [weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide()].filter(Boolean);
+  const genSlugs = new Set(generated.map(a => a.slug));
+  let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
   articles.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 
   const used = new Set();
