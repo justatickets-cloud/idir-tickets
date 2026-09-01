@@ -889,6 +889,8 @@ function buildVenuePages() {
 /* ==================================================================== */
 let MAGAZINE_ARTICLES = [];
 let NEWS_ARTICLES = [];
+let LANDING_PAGES = [];
+let LANDING_REDIRECTS = [];
 let MAGAZINE_REDIRECTS = []; // { from: oldSlug, to: newSlug } — להפניית 301 מכתבות שהשם שלהן שונה
 
 // פענוח frontmatter (--- key: value ---) מקובץ Markdown
@@ -1249,6 +1251,123 @@ ${faq.map(f => `<details class="faq-item"><summary>${escText(f.q)}</summary><div
   };
 }
 
+/* ===================== עמודי נחיתה SEO בתוך המגזין =====================
+   8 עמודי מפתח לשאילתות מדויקות בעברית, עם סינון אוטומטי מהפיד. */
+const TLV_RE = /תל אביב/;
+function landingContext() {
+  const t = israelToday();
+  const day = t.getDay();
+  const untilSat = (6 - day + 7) % 7;
+  return {
+    today: ymdStr(t), tomorrow: ymdStr(addDays(t, 1)),
+    saturday: ymdStr(addDays(t, untilSat)), weekEnd: ymdStr(addDays(t, 7)),
+  };
+}
+function landingMatch(shows, { sectionRe, cityRe, dateTest }, ctx) {
+  const out = [];
+  for (const s of shows) {
+    if (sectionRe && !sectionRe.test(s.section || '')) continue;
+    let nd = null;
+    for (const z of (s.Seances || [])) {
+      if (cityRe && !cityRe.test(z.city || '')) continue;
+      if (!dateTest(String(z.date || ''), ctx)) continue;
+      if (nd === null || String(z.date) < nd) nd = String(z.date);
+    }
+    if (nd !== null) out.push({ s, nd });
+  }
+  out.sort((a, b) => a.nd.localeCompare(b.nd));
+  return out.map(x => x.s);
+}
+function buildLandingPages(shows) {
+  const ctx = landingContext();
+  const MUSIC = /הופעות|מחזמר|מוזיקה|ג'אז|אופרה|מחול|קונצרט/;
+  const defs = [
+    { slug: 'הופעות-מוזיקה-היום', h1: 'הופעות מוזיקה היום',
+      title: 'הופעות מוזיקה היום — לוח הופעות לערב', desc: 'כל הופעות המוזיקה שמתקיימות היום בישראל: מועדים, אולמות, מחירים וכרטיסים. הלוח מתעדכן אוטומטית מדי יום.',
+      intro: 'כל הופעות המוזיקה שמתקיימות היום ברחבי הארץ. בחרו מופע, בדקו מחיר ומיקום, והזמינו כרטיסים בלחיצה.',
+      f: { sectionRe: MUSIC, dateTest: (d, c) => d === c.today } },
+    { slug: 'הופעות-זמרים-היום-הערב', h1: 'הופעות זמרים היום והערב',
+      title: 'הופעות זמרים היום והערב — כרטיסים', desc: 'הופעות של זמרים ואמני מוזיקה היום והערב בישראל, עם מועדים, אולמות וכרטיסים. מתעדכן אוטומטית.',
+      intro: 'הופעות של זמרים ואמני מוזיקה שמתקיימות היום והערב. תפסו כרטיס למופע חי כבר הערב.',
+      f: { sectionRe: MUSIC, dateTest: (d, c) => d === c.today } },
+    { slug: 'הופעות-היום-בערב-בתל-אביב', h1: 'הופעות היום בערב בתל אביב',
+      title: 'הופעות היום בערב בתל אביב — מה קורה הערב', desc: 'כל ההופעות והאירועים שמתקיימים היום בערב בתל אביב: הצגות, קונצרטים ומופעים, עם כרטיסים בהזמנה מיידית.',
+      intro: 'כל ההופעות והאירועים שמתקיימים היום בערב בתל אביב, במקום אחד. מצאו מה לעשות הערב בעיר.',
+      f: { cityRe: TLV_RE, dateTest: (d, c) => d === c.today } },
+    { slug: 'הופעות-מוזיקה-לפי-תאריך', h1: 'הופעות מוזיקה לפי תאריך',
+      title: 'הופעות מוזיקה לפי תאריך — לוח מלא', desc: 'לוח הופעות המוזיקה הקרובות בישראל, מסודר לפי תאריך: קונצרטים, ג\'אז, קלאסי ומחזות זמר. מועדים וכרטיסים.',
+      intro: 'לוח הופעות המוזיקה הקרובות בישראל, מסודר לפי תאריך. מצאו את המופע המתאים למועד שנוח לכם.',
+      f: { sectionRe: MUSIC, dateTest: (d, c) => d >= c.today } },
+    { slug: 'הופעות-זמרים-2026', h1: 'הופעות זמרים 2026',
+      title: 'הופעות זמרים 2026 — לוח מלא וכרטיסים', desc: 'כל הופעות הזמרים ואמני המוזיקה של 2026 בישראל: מועדים, אולמות ומחירים. הזמנת כרטיסים מוקדמת במקום אחד.',
+      intro: 'כל הופעות הזמרים ואמני המוזיקה שיתקיימו בישראל במהלך 2026. תכננו מראש ותפסו מקום.',
+      f: { sectionRe: MUSIC, dateTest: d => d.startsWith('2026') } },
+    { slug: 'לוח-הופעות-תל-אביב', h1: 'לוח הופעות תל אביב',
+      title: 'לוח הופעות תל אביב — הצגות, קונצרטים ואירועים', desc: 'לוח ההופעות המלא של תל אביב: קונצרטים, הצגות, מופעי ילדים ואירועים. מועדים קרובים, אולמות וכרטיסים.',
+      intro: 'לוח ההופעות המלא של תל אביב לזמן הקרוב — קונצרטים, הצגות, מופעי ילדים ואירועי תרבות בעיר.',
+      f: { cityRe: TLV_RE, dateTest: (d, c) => d >= c.today } },
+    { slug: 'הופעות-סטאנדאפ-היום-הערב-השבוע', h1: 'הופעות סטנד אפ היום, הערב והשבוע',
+      title: 'הופעות סטנד אפ היום, הערב והשבוע — כרטיסים', desc: 'כל הופעות הסטנד אפ הקרובות בישראל, מהיום ולאורך השבוע: מועדים, אולמות וכרטיסים. מתעדכן אוטומטית.',
+      intro: 'כל הופעות הסטנד אפ הקרובות בישראל, מהערב ולאורך השבוע הקרוב. צחוק מובטח, כרטיסים בלחיצה.',
+      f: { sectionRe: /סטנד/, dateTest: (d, c) => d >= c.today && d <= c.weekEnd } },
+    { slug: 'הופעות-לפי-תאריך-2027', h1: 'הופעות לפי תאריך 2027',
+      title: 'הופעות לפי תאריך 2027 — לוח מוקדם וכרטיסים', desc: 'לוח ההופעות והאירועים של 2027 בישראל, מסודר לפי תאריך: קונצרטים, הצגות ופסטיבלים. הזמנה מוקדמת.',
+      intro: 'לוח ההופעות והאירועים של 2027 בישראל, מסודר לפי תאריך. היערכות מוקדמת לעונת התרבות הבאה.',
+      f: { dateTest: d => d.startsWith('2027') } },
+  ];
+
+  const results = [];
+  for (const def of defs) {
+    let matched = landingMatch(shows, def.f, ctx).slice(0, 60);
+    let fallbackNote = '';
+    if (!matched.length) {
+      const fb = landingMatch(shows, { cityRe: def.f.cityRe || null, dateTest: (d, c) => d >= c.today }, ctx);
+      matched = fb.slice(0, 12);
+      fallbackNote = `<p class="landing-empty">לא נמצאו אירועים למועד המבוקש כרגע. בהמשך מוצגים האירועים הקרובים שכדאי לא לפספס.</p>`;
+    }
+    const url = `/magazine/${def.slug}/`;
+    const canonical = BRAND.domain + url;
+    const heroImage = (matched.find(s => s.image) || {}).image || '';
+    const cards = matched.map(showCard).join('\n');
+    const itemList = {
+      '@context': 'https://schema.org', '@type': 'ItemList',
+      itemListElement: matched.slice(0, 15).map((s, i) => ({
+        '@type': 'ListItem', position: i + 1, url: BRAND.domain + s._url, name: s.name,
+      })),
+    };
+    const crumb = breadcrumbSchema([
+      { name: 'בית', url: BRAND.domain + '/' },
+      { name: 'מגזין', url: BRAND.domain + '/magazine/' },
+      { name: def.h1, url: canonical },
+    ]);
+    const body = `
+<article class="hub landing-page">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <a href="/magazine/">מגזין</a> <span>›</span> <span class="current">${escText(def.h1)}</span></nav>
+    <h1 class="hub-title">${escText(def.h1)}</h1>
+    <p class="hub-intro">${escText(def.intro)}</p>
+    <p class="landing-count">נמצאו אירועים: <strong>${matched.length}</strong></p>
+    ${fallbackNote}
+    <div class="grid card-grid">${cards || '<p>בקרוב יופיעו כאן אירועים. חזרו בקרוב.</p>'}</div>
+    <p class="landing-related">כדאי גם: <a href="/">לוח ההופעות המלא</a> · <a href="/הופעות-2027.html">הופעות 2027</a> · <a href="/magazine/">מגזין</a> · <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות נפוצות</a></p>
+  </div>
+</article>`;
+    const html = page({
+      title: def.title + ' | איידיר כרטיסים',
+      description: def.desc,
+      canonical,
+      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(itemList)}</script>`,
+      body,
+    });
+    const dir = path.join(BRAND.outDir, 'magazine', def.slug);
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+    results.push({ slug: def.slug, url, title: def.h1, description: def.desc, image: heroImage, count: matched.length });
+  }
+  LANDING_PAGES = results;
+  return results.length;
+}
+
 function buildMagazine(shows) {
   const mdArticles = loadMdArticles();
   const generated = [weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows), faqArticle()].filter(Boolean);
@@ -1283,7 +1402,19 @@ function buildMagazine(shows) {
     <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">מגזין</span></nav>
     <h1 class="hub-title">מגזין תרבות ובילויים</h1>
     <p class="hub-intro">מדריכי בילוי, המלצות לסוף השבוע וכתבות תרבות של איידיר כרטיסים. כל מה שכדאי לדעת על עולם ההופעות, ההצגות והתרבות בישראל.</p>
+    ${LANDING_PAGES.length ? `<h2 class="mag-section-title">חיפושים מובילים</h2>
+    <div class="mag-grid">${LANDING_PAGES.map(p => `
+      <article class="mag-card">
+        <a class="mag-card-media" href="${esc(p.url)}">${p.image ? `<img loading="lazy" src="${esc(p.image)}" alt="${esc(p.title)}">` : ''}</a>
+        <div class="mag-card-body">
+          <span class="mag-card-date">${formatDate(ymdStr(israelToday()))}</span>
+          <h3 class="mag-card-title"><a href="${esc(p.url)}">${escText(p.title)}</a></h3>
+          <p class="mag-card-desc">${escText(p.description)}</p>
+          <a class="mag-card-link" href="${esc(p.url)}">קראו עוד ›</a>
+        </div>
+      </article>`).join('\n')}</div>` : ''}
     <nav class="mag-subnav"><a class="mag-subnav-link" href="/magazine/news/">📰 חדשות ועדכונים שוטפים ›</a></nav>
+    <h2 class="mag-section-title">כתבות ומדריכים</h2>
     <div class="mag-grid">${cardsHtml}</div>
   </div>
 </article>`;
@@ -1834,6 +1965,7 @@ function buildSitemap(shows) {
     ...VENUE_REGISTRY.map(v => ({ loc: `${BRAND.domain}${encodeURI(v.url)}`, pri: '0.7' })),
     { loc: `${BRAND.domain}/magazine/`, pri: '0.7' },
     ...MAGAZINE_ARTICLES.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.6' })),
+    ...LANDING_PAGES.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.8' })),
     { loc: `${BRAND.domain}/magazine/news/`, pri: '0.7' },
     ...NEWS_ARTICLES.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.6' })),
     ...shows.map(s => ({ loc: `${BRAND.domain}${encodeURI(s._url)}`, pri: '0.8' })),
@@ -2122,6 +2254,12 @@ span.btn-soldout{cursor:default}
 .mag-subnav{margin:-6px 0 22px}
 .mag-subnav-link{display:inline-block;background:var(--plum);color:#fff;font-weight:700;font-size:15px;padding:9px 18px;border-radius:999px;text-decoration:none;box-shadow:var(--shadow-sm)}
 .mag-subnav-link:hover{background:var(--plum-d)}
+.mag-section-title{font-size:22px;font-weight:800;margin:26px 0 16px}
+.mag-index .mag-section-title:first-of-type{margin-top:8px}
+.landing-page{padding-block:6px 50px}
+.landing-count{color:var(--muted);font-size:15px;margin:4px 0 18px}
+.landing-empty{background:var(--bg);border-right:3px solid var(--gold);border-radius:6px;padding:10px 14px;color:var(--muted);font-style:italic;font-size:14px;margin:0 0 18px}
+.landing-related{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
 
 /* News Layout — מדור חדשות */
 .news-hub{padding-block:6px 50px}
@@ -2509,6 +2647,7 @@ function run() {
   const artistCount = buildArtistsIndex(shows);
   const artistPageCount = buildArtistPages();
   const venuePageCount = buildVenuePages();
+  const landingCount = buildLandingPages(shows);
   const magazineCount = buildMagazine(shows);
   const newsCount = buildNews(shows);
   buildSitemap(shows);
