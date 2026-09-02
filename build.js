@@ -1856,6 +1856,17 @@ function buildShow(show) {
   const metaDesc = stripTags(show.description).slice(0, 155);
   const sold = showSoldOut(show);
 
+  // פסקה פותחת עובדתית מותאמת AI Overviews (נשאבת דינמית מהפיד)
+  const se0 = firstUpcomingSeance(show);
+  const leadDate = (se0.date || show.dateFrom) ? formatDate(se0.date || show.dateFrom) : '';
+  const leadTime = se0.time ? formatTime(se0.time) : '';
+  const leadVenue = se0.hall ? escText(se0.hall) : '';
+  const leadCity = se0.city ? escText(se0.city) : (cities[0] ? escText(cities[0]) : '');
+  const leadPrice = Number(show.priceMin) ? `${Number(show.priceMin)} ₪` : '';
+  const aiLede = sold
+    ? `המופע ${escText(show.name)}${leadVenue ? ` מתקיים ב${leadVenue}` : ''}${leadCity ? `, ${leadCity}` : ''}. הכרטיסים למופע אזלו כרגע.`
+    : `המופע ${escText(show.name)} יתקיים${leadDate ? ` בתאריך ${leadDate}` : ''}${leadTime ? ` בשעה ${leadTime}` : ''}${leadVenue ? ` ב${leadVenue}` : ''}${leadCity ? `, ${leadCity}` : ''}. כרטיסים זמינים להזמנה באתר${leadPrice ? ` החל ממחיר של ${leadPrice}` : ''}.`;
+
   const body = `
 <nav class="breadcrumb wrap">
   <a href="/">בית</a> <span>›</span> <span>${escText(show.section)}</span> <span>›</span> <span class="current">${escText(show.name)}</span>
@@ -1884,6 +1895,7 @@ function buildShow(show) {
 
   <div class="wrap show-grid">
     <section class="show-desc">
+      <p class="show-lead">${aiLede}</p>
       <h2>על המופע</h2>
       <div class="rte">${safeHtml(show.description)}</div>
     </section>
@@ -1913,6 +1925,7 @@ function buildShow(show) {
     </div>
     <p class="faq-hint faq-hint-center">שאלות על ביטולים או קבלת כרטיסים? <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">קראו במדריך השאלות הנפוצות ›</a></p>
   </section>
+  ${sold ? '' : `<div class="mobile-cta"><a class="mobile-cta-btn" href="#seances">הזמן כרטיסים עכשיו ›</a></div>`}
 </article>`;
 
   const html = page({
@@ -2151,6 +2164,15 @@ span.btn-soldout{cursor:default}
 .pill{display:inline-block;background:rgba(109,31,75,.1);color:var(--plum);font-weight:700;
   padding:6px 14px;border-radius:999px;font-size:13px;margin-bottom:12px}
 .show-title{font-size:clamp(24px,4vw,36px);margin:0 0 10px;line-height:1.2;font-weight:800}
+.show-lead{font-size:17px;line-height:1.7;font-weight:600;color:var(--ink);background:var(--bg);border-radius:10px;padding:14px 16px;margin:0 0 18px;border-inline-start:3px solid var(--plum)}
+/* Mobile sticky CTA — יחידה מבודדת, ניתנת להסרה בקלות (מחק את הבלוק ואת רכיב .mobile-cta בתבנית) */
+.mobile-cta{display:none}
+@media(max-width:767px){
+  .mobile-cta{display:block;position:fixed;inset-inline:0;bottom:0;z-index:80;background:#fff;box-shadow:0 -2px 16px rgba(0,0,0,.14);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+  .mobile-cta-btn{display:block;text-align:center;background:#16a34a;color:#fff;font-weight:800;font-size:17px;padding:15px;border-radius:12px;text-decoration:none;box-shadow:0 2px 8px rgba(22,163,74,.35)}
+  .mobile-cta-btn:active{background:#12833c}
+  body:has(.mobile-cta){padding-bottom:84px}
+}
 .show-announce{color:var(--muted);font-size:18px;margin:0 0 12px}
 .show-artist-link{margin:0 0 18px}
 .show-artist-link a{color:var(--plum);font-weight:700;font-size:15px}
