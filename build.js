@@ -149,13 +149,26 @@ function slugify(str) {
     .replace(/^-+|-+$/g, '');
 }
 
+// הגבלת אורך מקטע נתיב לפי בתים (מגבלת Linux/ext4 לשם תיקייה: 255 בתים;
+// תו עברי ב-UTF-8 = 2 בתים). קיצוץ על גבול תו, בלי לשבור תו רב-בייטי.
+function capSlugBytes(str, maxBytes) {
+  if (Buffer.byteLength(str, 'utf8') <= maxBytes) return str;
+  let out = '', bytes = 0;
+  for (const ch of str) {
+    const b = Buffer.byteLength(ch, 'utf8');
+    if (bytes + b > maxBytes) break;
+    out += ch; bytes += b;
+  }
+  return out.replace(/-+$/, '');
+}
+
 // מקצה לכל מופע נתיב תיקייה (_dir) וכתובת URL (_url) ייחודיים
 function assignShowUrls(shows) {
   const used = new Set();
   const SUFFIX = 'כרטיסים-ולוח-הופעות';
   for (const s of shows) {
     const cat = categorySlug(s.section);
-    const nameSlug = slugify(s.name) || String(s.id);
+    const nameSlug = capSlugBytes(slugify(s.name) || String(s.id), 150);
     let rel = `${cat}/${nameSlug}-${SUFFIX}`;
     if (used.has(rel)) rel = `${cat}/${nameSlug}-${s.id}-${SUFFIX}`;
     used.add(rel);
@@ -760,7 +773,7 @@ function assignHubs(shows) {
   shows.forEach(s => { if (isCleanArtist(s.name)) (byArtist[s.name] = byArtist[s.name] || []).push(s); });
   const aUsed = new Set();
   ARTIST_REGISTRY = Object.keys(byArtist).sort((a, b) => a.localeCompare(b, 'he')).map(name => {
-    let slug = slugify(name) || 'artist';
+    let slug = capSlugBytes(slugify(name) || 'artist', 150);
     if (aUsed.has(slug)) slug += '-' + byArtist[name][0].id;
     aUsed.add(slug);
     const url = `/artist/${slug}/`;
@@ -775,7 +788,7 @@ function assignHubs(shows) {
   const vUsed = new Set();
   VENUE_REGISTRY = Object.keys(byHall).filter(h => byHall[h].length >= 2)
     .sort((a, b) => a.localeCompare(b, 'he')).map(hall => {
-      let slug = slugify(hall) || 'venue';
+      let slug = capSlugBytes(slugify(hall) || 'venue', 150);
       if (vUsed.has(slug)) slug += '-' + byHall[hall][0].id;
       vUsed.add(slug);
       const url = `/venues/${slug}/`;
@@ -1497,7 +1510,7 @@ function newsItems(shows) {
 <p>${buy}</p>
 <p class="news-related">עוד בקטגוריה: <a href="/">לוח ההופעות המלא</a> · <a href="/magazine/">כל כתבות המגזין</a></p>`;
     items.push({
-      slug: slugify(s.name),
+      slug: capSlugBytes(slugify(s.name), 150),
       kicker,
       title,
       date: newsPubDay(s),
