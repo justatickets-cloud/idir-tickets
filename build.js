@@ -142,6 +142,7 @@ function categorySlug(section) { return CATEGORY_SLUGS[section] || 'events'; }
 // ניקוי שם מופע לסלאג URL: משאיר אותיות/ספרות, רווחים ומקפים -> מקף יחיד
 function slugify(str) {
   return String(str || '')
+    .replace(/&nbsp;|&#160;|&#x0*a0;| |﻿/gi, ' ') // רווחים לא שבירים / entities נסתרים -> רווח רגיל
     .normalize('NFC')
     .replace(/[^\p{L}\p{N}\s-]/gu, '') // מסיר מרכאות, סלאשים, פיסוק ותווים מיוחדים
     .trim()
