@@ -662,6 +662,13 @@ const CITY_PAGES = [
   },
 ];
 
+// מפת עיר -> עמוד עיר (לקישוריות פנימית מעמודי מופע)
+const cityUrlByCity = {};
+CITY_PAGES.forEach(c => { cityUrlByCity[c.city] = `/${c.slug}/`; });
+
+// כפתור רכישה צף אחיד לעמודי ריכוז (מובייל בלבד) — גולל לרשת התוצאות
+const HUB_STICKY = `<div class="mobile-cta"><a class="mobile-cta-btn" href="#results">לכל המופעים והכרטיסים ›</a></div>`;
+
 function buildCityPages(shows) {
   const results = {};
   CITY_PAGES.forEach(cfg => {
@@ -675,19 +682,23 @@ function buildCityPages(shows) {
       { name: cfg.h1, url: canonical },
     ]);
     const cards = matched.map(showCard).join('\n');
+    // פסקה פותחת עובדתית מותאמת AI Overviews
+    const aiLede = `בעמוד זה מרוכזים ${matched.length} מופעים, הצגות וקונצרטים המתקיימים ב${cfg.city}, כולל מועדים, אולמות ומחירים. ניתן להזמין כרטיסים לכל האירועים ישירות מהעמוד.`;
 
     const body = `
 <article class="hub">
   <div class="wrap">
     <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">${escText(cfg.h1)}</span></nav>
     <h1 class="hub-title">${escText(cfg.h1)}</h1>
+    <p class="show-lead">${escText(aiLede)}</p>
     <p class="hub-intro">${escText(cfg.intro)}</p>
     <div class="results-head">
       <span class="results-count">${matched.length} מופעים</span>
     </div>
-    ${matched.length ? `<div class="grid">\n${cards}\n</div>` : hubEmpty()}
+    ${matched.length ? `<div class="grid" id="results">\n${cards}\n</div>` : hubEmpty()}
   </div>
-</article>`;
+</article>
+${matched.length ? HUB_STICKY : ''}`;
 
     const html = page({ title: cfg.title, description: cfg.desc, canonical, head: crumb, body });
     const dir = path.join(BRAND.outDir, cfg.slug);
@@ -696,6 +707,61 @@ function buildCityPages(shows) {
     results[cfg.slug] = matched.length;
   });
   return results;
+}
+
+// ===================== עמודי ז'אנר (Genre Hubs) =====================
+// עמוד ריכוז לכל סוגה תחת /[category]/index.html — קיבוץ דינמי מהפיד
+let GENRE_PAGES = []; // { slug, url, section, count }
+function buildGenrePages(shows) {
+  const bySlug = {};
+  shows.forEach(s => {
+    if (!s.section) return;
+    const slug = categorySlug(s.section);
+    (bySlug[slug] = bySlug[slug] || { list: [], sections: {} });
+    bySlug[slug].list.push(s);
+    bySlug[slug].sections[s.section] = (bySlug[slug].sections[s.section] || 0) + 1;
+  });
+  GENRE_PAGES = [];
+  const results = {};
+  Object.keys(bySlug).forEach(slug => {
+    const { list, sections } = bySlug[slug];
+    if (!list.length) return;
+    const section = Object.keys(sections).sort((a, b) => sections[b] - sections[a])[0];
+    const url = `/${slug}/`;
+    const canonical = BRAND.domain + url;
+    const h1 = `${section}: כרטיסים ומופעים בישראל`;
+    const title = `${section} - כרטיסים ומופעים 2026 | איידיר כרטיסים`;
+    const desc = `כל המופעים מסוג ${section} המתקיימים בישראל במקום אחד. מועדים, אולמות, מחירים וכרטיסים לרכישה מאובטחת.`;
+    const aiLede = `בעמוד זה מרוכזים ${list.length} מופעים מסוג ${section} המתקיימים בישראל, כולל מועדים, אולמות ומחירים. ניתן להזמין כרטיסים לכל המופעים ישירות מהעמוד.`;
+    const cards = list.map(showCard).join('\n');
+    const crumb = breadcrumbSchema([
+      { name: 'בית', url: BRAND.domain + '/' },
+      { name: section, url: canonical },
+    ]);
+    const collection = { '@context': 'https://schema.org', '@type': 'CollectionPage', name: h1, url: canonical, description: desc };
+    const body = `
+<article class="hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">${escText(section)}</span></nav>
+    <h1 class="hub-title">${escText(h1)}</h1>
+    <p class="show-lead">${escText(aiLede)}</p>
+    <div class="results-head"><span class="results-count">${list.length} מופעים</span></div>
+    <div class="grid" id="results">\n${cards}\n</div>
+  </div>
+</article>
+${HUB_STICKY}`;
+    const html = page({
+      title, description: desc, canonical,
+      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(collection)}</script>`,
+      body,
+    });
+    const dir = path.join(BRAND.outDir, slug);
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+    results[slug] = list.length;
+    GENRE_PAGES.push({ slug, url, section, count: list.length });
+  });
+  return GENRE_PAGES.length;
 }
 
 /* ---------------------- אינדקס אמנים (Artists Hub) -------------------- */
@@ -873,16 +939,19 @@ function buildVenuePages() {
       },
     };
     const loc = [v.address, v.city].filter(Boolean).join(', ');
+    const aiLede = `בעמוד זה מרוכזים ${v.shows.length} מופעים ואירועים הקרובים ב${v.hall}${v.city ? `, ${v.city}` : ''}, כולל מועדים, מחירים וכרטיסים. ניתן להזמין כרטיסים לכל האירועים ישירות מהעמוד.`;
     const body = `
 <article class="hub">
   <div class="wrap">
     <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span>אולמות</span> <span>›</span> <span class="current">${escText(v.hall)}</span></nav>
     <h1 class="hub-title">${escText(v.hall)}</h1>
+    <p class="show-lead">${escText(aiLede)}</p>
     <p class="hub-intro">לוח המופעים והאירועים הקרובים ב${escText(v.hall)}${loc ? ' · ' + escText(loc) : ''}. מועדים, מחירים וכרטיסים מעודכנים בזמן אמת.</p>
     <div class="results-head"><span class="results-count">${v.shows.length} מופעים</span></div>
-    ${v.shows.length ? `<div class="grid">\n${cards}\n</div>` : hubEmpty()}
+    ${v.shows.length ? `<div class="grid" id="results">\n${cards}\n</div>` : hubEmpty()}
   </div>
-</article>`;
+</article>
+${v.shows.length ? HUB_STICKY : ''}`;
     const html = page({
       title: `${v.hall} לוח מופעים וכרטיסים | איידיר כרטיסים`,
       description: `כל האירועים והמופעים הקרובים ב${v.hall}${v.city ? ' ב' + v.city : ''}. מועדים, מחירים וכרטיסים לרכישה מאובטחת.`,
@@ -1883,7 +1952,7 @@ function buildShow(show) {
 
   const body = `
 <nav class="breadcrumb wrap">
-  <a href="/">בית</a> <span>›</span> <span>${escText(show.section)}</span> <span>›</span> <span class="current">${escText(show.name)}</span>
+  <a href="/">בית</a> <span>›</span> <a href="/${categorySlug(show.section)}/">${escText(show.section)}</a> <span>›</span> <span class="current">${escText(show.name)}</span>
 </nav>
 
 <article class="show">
@@ -1899,7 +1968,7 @@ function buildShow(show) {
         ${artistUrlByName[show.name] ? `<p class="show-artist-link"><a href="${esc(artistUrlByName[show.name])}">כל ההופעות של ${escText(show.name)} ›</a></p>` : ''}
         <div class="show-facts">
           <div class="fact"><span class="fact-k">מועדים</span><span class="fact-v">${formatDate(show.dateFrom)}</span></div>
-          <div class="fact"><span class="fact-k">מיקום</span><span class="fact-v">${escText(cities.join(' · ') || 'יפורסם')}</span></div>
+          <div class="fact"><span class="fact-k">מיקום</span><span class="fact-v">${cities.length ? cities.map(c => cityUrlByCity[c] ? `<a href="${cityUrlByCity[c]}">${escText(c)}</a>` : escText(c)).join(' · ') : 'יפורסם'}</span></div>
           <div class="fact"><span class="fact-k">מחיר</span><span class="fact-v">${priceLabel(show.priceMin, show.priceMax)}</span></div>
         </div>
         ${sold ? `<span class="btn btn-soldout btn-lg">אזלו הכרטיסים</span>` : `<a class="btn btn-primary btn-lg" href="#seances">להזמנת כרטיסים</a>`}
@@ -1987,6 +2056,7 @@ function buildSitemap(shows) {
     { loc: BRAND.domain + '/', pri: '1.0' },
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
     ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
+    ...GENRE_PAGES.map(p => ({ loc: `${BRAND.domain}${p.url}`, pri: '0.8' })),
     { loc: `${BRAND.domain}/רשימת-אמנים/`, pri: '0.7' },
     ...ARTIST_REGISTRY.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.7' })),
     ...VENUE_REGISTRY.map(v => ({ loc: `${BRAND.domain}${encodeURI(v.url)}`, pri: '0.7' })),
@@ -2680,6 +2750,7 @@ function run() {
   buildStaticPages();
   const hubCounts = buildHubPages(shows);
   const cityCounts = buildCityPages(shows);
+  const genreCount = buildGenrePages(shows);
   const artistCount = buildArtistsIndex(shows);
   const artistPageCount = buildArtistPages();
   const venuePageCount = buildVenuePages();
