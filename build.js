@@ -972,6 +972,31 @@ ${v.shows.length ? HUB_STICKY : ''}`;
 /* ==================================================================== */
 let MAGAZINE_ARTICLES = [];
 let NEWS_ARTICLES = [];
+// העשרות תוכן מאושרות (content-agent) — שכבה אדיטיבית: id -> {paragraph, faq, sources}
+let ENRICHMENTS = {};
+function loadEnrichments() {
+  try { ENRICHMENTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'content', 'enrichments', 'idir.json'), 'utf8')); }
+  catch (e) { ENRICHMENTS = {}; }
+}
+// מקטע ההרחבה בעמוד המופע — מוצג רק אם קיים אישור לאותו id (אחרת מחזיר ריק)
+function enrichmentSection(show) {
+  const e = ENRICHMENTS[String(show.id)];
+  if (!e || !e.paragraph) return '';
+  const faq = (e.faq || []).filter(f => f && f.q && f.a);
+  const faqHtml = faq.length ? faq.map(f =>
+    `<details class="faq-item"><summary>${escText(f.q)}</summary><div class="faq-answer">${escText(f.a)}</div></details>`).join('\n') : '';
+  const faqSchema = faq.length ? {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: faq.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  } : null;
+  return `
+  <section class="wrap show-enrichment">
+    <h2>עוד על ${escText(show.name)}</h2>
+    <p class="show-enrichment-lead">${escText(e.paragraph)}</p>
+    ${faqHtml}
+    ${faqSchema ? `<script type="application/ld+json">${JSON.stringify(faqSchema)}</script>` : ''}
+  </section>`;
+}
 let LANDING_PAGES = [];
 let LANDING_REDIRECTS = [];
 let MAGAZINE_REDIRECTS = []; // { from: oldSlug, to: newSlug } — להפניית 301 מכתבות שהשם שלהן שונה
@@ -1993,7 +2018,7 @@ function buildShow(show) {
       </div>
     </aside>
   </div>
-
+${enrichmentSection(show)}
   <section id="seances" class="wrap seances">
     <h2>מועדים וכרטיסים</h2>
     <div class="table-wrap">
@@ -2268,6 +2293,9 @@ span.btn-soldout{cursor:default}
 
 .show-grid{display:grid;grid-template-columns:1fr 320px;gap:34px;padding-block:20px 10px;align-items:start}
 .show-desc h2,.seances h2{font-size:22px;font-weight:800;margin:0 0 14px}
+.show-enrichment{padding-block:8px 8px;max-width:820px}
+.show-enrichment h2{font-size:22px;font-weight:800;margin:0 0 14px}
+.show-enrichment-lead{font-size:17px;line-height:1.8;color:var(--ink);margin:0 0 18px}
 .rte{color:#312a3a;font-size:16.5px;line-height:1.85}
 .rte strong{color:var(--ink)}
 .show-aside{position:sticky;top:88px}
@@ -2737,6 +2765,7 @@ function run() {
   console.log(`· לעיבוד: ${scope}`);
   assignShowUrls(shows);
   assignHubs(shows);
+  loadEnrichments();
 
   if (fs.existsSync(BRAND.outDir)) {
     fs.rmSync(BRAND.outDir, { recursive: true, force: true });
