@@ -315,21 +315,21 @@ function siteFooter() {
 
   <div class="wrap footer-timing">
     <span class="footer-timing-label">לפי מועד:</span>
-    <a href="/הופעות-היום.html">הופעות היום</a>
-    <a href="/הופעות-בסוף-השבוע.html">הופעות בסוף השבוע</a>
-    <a href="/הופעות-השבוע.html">הופעות השבוע</a>
-    <a href="/הופעות-החודש.html">הופעות החודש</a>
-    <a href="/הופעות-2026.html">הופעות 2026</a>
-    <a href="/הופעות-2027.html">הופעות 2027</a>
+    <a href="/הופעות-היום">הופעות היום</a>
+    <a href="/הופעות-בסוף-השבוע">הופעות בסוף השבוע</a>
+    <a href="/הופעות-השבוע">הופעות השבוע</a>
+    <a href="/הופעות-החודש">הופעות החודש</a>
+    <a href="/הופעות-2026">הופעות 2026</a>
+    <a href="/הופעות-2027">הופעות 2027</a>
   </div>
 
   <div class="footer-bottom wrap">
     <div class="foot-copy">© ${year} ${escText(BRAND.nameHe)} (idir.co.il). כל הזכויות שמורות.</div>
     <div class="footer-legal-links">
-      <a href="/privacy.html">מדיניות פרטיות</a> ·
-      <a href="/terms.html">תנאי שימוש</a> ·
+      <a href="/privacy">מדיניות פרטיות</a> ·
+      <a href="/terms">תנאי שימוש</a> ·
       <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות נפוצות ועזרה</a> ·
-      <a href="/contact.html">יצירת קשר</a>
+      <a href="/contact">יצירת קשר</a>
     </div>
     <div class="foot-disclaimer">רכישת כרטיסים | המידע, לוחות המועדים והכרטיסים מתעדכנים באופן שוטף.</div>
   </div>
@@ -405,7 +405,7 @@ function showCard(show) {
 const STATIC_SLUGS = ['privacy', 'terms', 'contact'];
 
 function staticPage(slug, title, metaDesc, h1, contentHtml) {
-  const canonical = `${BRAND.domain}/${slug}.html`;
+  const canonical = `${BRAND.domain}/${slug}`;
   const body = `
 <article class="static">
   <div class="wrap static-inner">
@@ -568,9 +568,9 @@ function hubEmpty() {
     <p>אין כרגע מופעים זמינים בקטגוריה זו. מומלץ לבדוק שוב בקרוב, או לעיין באפשרויות הבאות:</p>
     <ul class="hub-empty-links">
       <li><a href="/">כל המופעים</a></li>
-      <li><a href="/הופעות-השבוע.html">הופעות השבוע</a></li>
-      <li><a href="/הופעות-החודש.html">הופעות החודש</a></li>
-      <li><a href="/הופעות-2026.html">כל מופעי 2026</a></li>
+      <li><a href="/הופעות-השבוע">הופעות השבוע</a></li>
+      <li><a href="/הופעות-החודש">הופעות החודש</a></li>
+      <li><a href="/הופעות-2026">כל מופעי 2026</a></li>
     </ul>
   </div>`;
 }
@@ -603,7 +603,7 @@ function buildHubPages(shows) {
       (show.Seances || []).some(s =>
         (!cfg.city || s.city === cfg.city) && matchWhen(s.date, cfg.when)));
 
-    const canonical = `${BRAND.domain}/${cfg.slug}.html`;
+    const canonical = `${BRAND.domain}/${cfg.slug}`;
     const crumb = breadcrumbSchema([
       { name: 'בית', url: BRAND.domain + '/' },
       { name: cfg.h1, url: canonical },
@@ -1079,7 +1079,7 @@ function weekendArticle(shows) {
     bodyHtml: `<p>סוף השבוע כבר כאן, וריכזנו עבורכם את המופעים, ההצגות והקונצרטים המומלצים ביותר שמתקיימים בין ${range}. בחרו את הבילוי המושלם ורכשו כרטיסים בקלות.</p>
 <h2>המומלצים לסוף השבוע</h2>
 <ul class="mag-picks">${items}</ul>
-<p>לרשימה המלאה של כל אירועי סוף השבוע, בקרו ב<a href="/הופעות-בסוף-השבוע.html">עמוד הופעות סוף השבוע</a> שלנו.</p>`,
+<p>לרשימה המלאה של כל אירועי סוף השבוע, בקרו ב<a href="/הופעות-בסוף-השבוע">עמוד הופעות סוף השבוע</a> שלנו.</p>`,
   };
 }
 
@@ -1118,7 +1118,7 @@ function familyWeekendArticle(shows) {
     date: ymdStr(now),
     author: BRAND.nameHe,
     image: (picks.find(s => s.image) || {}).image || '',
-    bodyHtml: `<p>סוף השבוע הוא הזמן המושלם לבילוי משפחתי, ואין דבר שמאיר את עיני הילדים כמו מופע חי. בין אם אתם מחפשים הצגת ילדים קלאסית, קרקס צבעוני, שעת סיפור מכושפת או אטרקציה מרהיבה, ריכזנו עבורכם את כל האירועים המתאימים לכל המשפחה המתקיימים בין ${range}. סידרנו הכול לפי עיר, כדי שתמצאו במהירות את הבילוי המושלם קרוב לבית, ותוכלו להזמין כרטיסים בלחיצה אחת ולצאת להרפתקה משפחתית בלתי נשכחת.</p>\n${sections}\n<p>לרשימה המלאה של כל אירועי סוף השבוע לכל הגילאים, בקרו ב<a href="/הופעות-בסוף-השבוע.html">עמוד הופעות סוף השבוע</a>. מחפשים בילוי בעיר מסוימת? עברו ל<a href="/">עמוד הבית</a> וסננו לפי קטגוריית "הצגות ילדים" והעיר שלכם.</p>`,
+    bodyHtml: `<p>סוף השבוע הוא הזמן המושלם לבילוי משפחתי, ואין דבר שמאיר את עיני הילדים כמו מופע חי. בין אם אתם מחפשים הצגת ילדים קלאסית, קרקס צבעוני, שעת סיפור מכושפת או אטרקציה מרהיבה, ריכזנו עבורכם את כל האירועים המתאימים לכל המשפחה המתקיימים בין ${range}. סידרנו הכול לפי עיר, כדי שתמצאו במהירות את הבילוי המושלם קרוב לבית, ותוכלו להזמין כרטיסים בלחיצה אחת ולצאת להרפתקה משפחתית בלתי נשכחת.</p>\n${sections}\n<p>לרשימה המלאה של כל אירועי סוף השבוע לכל הגילאים, בקרו ב<a href="/הופעות-בסוף-השבוע">עמוד הופעות סוף השבוע</a>. מחפשים בילוי בעיר מסוימת? עברו ל<a href="/">עמוד הבית</a> וסננו לפי קטגוריית "הצגות ילדים" והעיר שלכם.</p>`,
   };
 }
 
@@ -1294,7 +1294,7 @@ function mustSee2027Article(shows) {
   };
   const list = (arr) => arr.length
     ? `<ul class="mag-picks">${arr.map(itemLi).join('\n')}</ul>`
-    : `<p>הרשימה המלאה מתעדכנת כל העת. עברו ללוח <a href="/הופעות-2027.html">הופעות 2027</a> לצפייה בכל המופעים בקטגוריה זו.</p>`;
+    : `<p>הרשימה המלאה מתעדכנת כל העת. עברו ללוח <a href="/הופעות-2027">הופעות 2027</a> לצפייה בכל המופעים בקטגוריה זו.</p>`;
 
   const giants = byName(['אייפמן', 'ג׳יזל', "ג'יזל", 'גיזל', 'Malevo', 'מלבו', 'מאלבו', 'Beatles', 'ביטלס', 'בלט']);
   const theater = bySection(['תיאטרון', 'זמר', 'קומדיה', 'סטנד', 'בידור', 'מחזה'], 8);
@@ -1316,7 +1316,7 @@ ${list(music)}
 
 <h2>למה כדאי להזמין כרטיסים כבר עכשיו</h2>
 <p>עונת 2027 כבר פתוחה להזמנות, וההיערכות המוקדמת משתלמת. למופעים המבוקשים המקומות הטובים אוזלים ראשונים, והמחירים נוטים לעלות ככל שמתקרב מועד האירוע. הזמנה מוקדמת מבטיחה לכם לא רק כרטיס, אלא את המקום הנכון: מרכז האולם לאיזון הסאונד הטוב ביותר, או השורות הקדמיות לחוויה אינטימית. לפני הרכישה, שווה לעיין ב<a href="/magazine/${encodeURI('מדריך-אולמות-הופעות-איפה-כדאי-לשבת')}/">מדריך האולמות שלנו</a> כדי לבחור בדיוק איפה לשבת.</p>
-<p>לרשימה המלאה והמתעדכנת של כל האירועים, בקרו בלוח <a href="/הופעות-2027.html">הופעות 2027</a>, או עברו ל<a href="/">עמוד הבית</a> וסננו לפי אמן, אולם, עיר ותאריך. לפני הרכישה, כדאי לעיין ב<a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות הנפוצות על רכישת כרטיסים</a>.</p>`;
+<p>לרשימה המלאה והמתעדכנת של כל האירועים, בקרו בלוח <a href="/הופעות-2027">הופעות 2027</a>, או עברו ל<a href="/">עמוד הבית</a> וסננו לפי אמן, אולם, עיר ותאריך. לפני הרכישה, כדאי לעיין ב<a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות הנפוצות על רכישת כרטיסים</a>.</p>`;
 
   return {
     slug: 'הופעות-החובה-והאירועים-הגדולים-של-2027',
@@ -1457,7 +1457,7 @@ function buildLandingPages(shows) {
     <p class="landing-count">נמצאו אירועים: <strong>${matched.length}</strong></p>
     ${fallbackNote}
     <div class="grid card-grid">${cards || '<p>בקרוב יופיעו כאן אירועים. חזרו בקרוב.</p>'}</div>
-    <p class="landing-related">כדאי גם: <a href="/">לוח ההופעות המלא</a> · <a href="/הופעות-2027.html">הופעות 2027</a> · <a href="/magazine/">מגזין</a> · <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות נפוצות</a></p>
+    <p class="landing-related">כדאי גם: <a href="/">לוח ההופעות המלא</a> · <a href="/הופעות-2027">הופעות 2027</a> · <a href="/magazine/">מגזין</a> · <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות נפוצות</a></p>
   </div>
 </article>`;
     const html = page({
@@ -1627,7 +1627,7 @@ function newsItems(shows) {
       image: (shows.find(s => (s.Seances || []).some(z => String(z.date).startsWith('2027')) && s.image) || {}).image || '',
       bodyHtml: `<p class="news-lede">עונת התרבות של 2027 כבר מתחילה להתמלא, ומעריצים שאוהבים לתכנן מראש כבר יכולים לתפוס מקום. ${c2027} מופעים ואירועים נפתחו להזמנה מוקדמת במערכת שלנו.</p>
 <p>מבכורות בלט בינלאומיות ועד קונצרטי ענק, פסטיבלים והפקות מקור — ההיצע לשנה הבאה הולך וגדל מדי שבוע. ההיערכות המוקדמת משתלמת: המקומות הטובים והמחירים האטרקטיביים נתפסים ראשונים.</p>
-<p>לסקירה המלאה קראו את <a href="/magazine/${encodeURI('הופעות-החובה-והאירועים-הגדולים-של-2027')}/">הופעות החובה של 2027</a> ואת <a href="/magazine/${encodeURI('הפסטיבלים-והאירועים-הגדולים-של-שנת-2027')}/">מדריך הפסטיבלים</a>, או עברו ישירות ללוח <a href="/הופעות-2027.html"><strong>הופעות 2027</strong></a>.</p>
+<p>לסקירה המלאה קראו את <a href="/magazine/${encodeURI('הופעות-החובה-והאירועים-הגדולים-של-2027')}/">הופעות החובה של 2027</a> ואת <a href="/magazine/${encodeURI('הפסטיבלים-והאירועים-הגדולים-של-שנת-2027')}/">מדריך הפסטיבלים</a>, או עברו ישירות ללוח <a href="/הופעות-2027"><strong>הופעות 2027</strong></a>.</p>
 <p class="news-related"><a href="/magazine/">כל כתבות המגזין</a></p>`,
     });
   }
@@ -2079,7 +2079,7 @@ function buildSitemap(shows) {
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
     { loc: BRAND.domain + '/', pri: '1.0' },
-    ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}.html`, pri: '0.9' })),
+    ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}`, pri: '0.9' })),
     ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
     ...GENRE_PAGES.map(p => ({ loc: `${BRAND.domain}${p.url}`, pri: '0.8' })),
     { loc: `${BRAND.domain}/רשימת-אמנים/`, pri: '0.7' },
@@ -2091,7 +2091,7 @@ function buildSitemap(shows) {
     { loc: `${BRAND.domain}/magazine/news/`, pri: '0.7' },
     ...NEWS_ARTICLES.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.6' })),
     ...shows.map(s => ({ loc: `${BRAND.domain}${encodeURI(s._url)}`, pri: '0.8' })),
-    ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}.html`, pri: '0.4' })),
+    ...STATIC_SLUGS.map(slug => ({ loc: `${BRAND.domain}/${slug}`, pri: '0.4' })),
   ];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
