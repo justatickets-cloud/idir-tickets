@@ -273,7 +273,11 @@ function siteFooter() {
     <div class="footer-col footer-about">
       <div class="foot-brand">${escText(BRAND.nameHe)} · ${escText(BRAND.nameEn)}</div>
       <p class="foot-desc">
-        פורטל התרבות והאירועים של ישראל. אצלנו תמצאו כרטיסים לכל מופעי המוזיקה, הצגות תיאטרון, מופעי סטנדאפ, פסטיבלים והצגות ילדים בכל רחבי הארץ עם לוח מועדים מעודכן בזמן אמת ורכישה מאובטחת.
+        <strong>iDir · הכרטיסים שלך, תרבות בלי כאב ראש</strong><br>
+        פורטל התרבות והאירועים של ישראל. אצלנו תמצאו כרטיסים לכל מופעי המוזיקה, הצגות תיאטרון, מופעי סטנד-אפ, פסטיבלים והצגות ילדים בכל רחבי הארץ.<br><br>
+        <strong>iDir · מצאו הופעות לפי תאריך:</strong> מצאו הופעות להיום, למחר, לסוף השבוע, לחודש זה, או לכל שנת 2026 ו-2027, לפי ז'אנר, עיר או שם האולם.<br><br>
+        <strong>שקט נפשי ואבטחה:</strong> לוח מועדים מעודכן בזמן אמת, רכישה מאובטחת לחלוטין וכרטיסים שמגיעים ישירות אליך.<br><br>
+        <span class="foot-cta">אל תפספסו את האירוע הבא, בחרו את תאריך ההופעה שלכם עכשיו ותפסו מקום!</span>
       </p>
     </div>
 
@@ -1757,11 +1761,16 @@ function buildIndex(shows) {
   const body = `
 <section class="hero">
   <div class="wrap hero-inner">
-    <p class="hero-eyebrow">${esc(BRAND.tagline)}</p>
-    <h1 class="hero-title">כרטיסים להופעות והצגות היום, השבוע ולפי תאריך 2026</h1>
-    <p class="hero-sub">מרכזים עבורכם את כל המופעים, ההצגות והקונצרטים המובילים בישראל. בחרו לפי תאריך, עיר או קטגוריה ורכשו כרטיסים מאובטחת בקלות ובמהירות.</p>
+    <p class="hero-eyebrow">iDir · הכרטיסים שלך לתרבות בלי כאב ראש</p>
+    <h1 class="hero-title">הבמה מחכה לך: כל ההופעות, ההצגות והקונצרטים המובילים בישראל במקום אחד</h1>
+    <p class="hero-sub">
+      נמאס לך לעבור בין עשרות אתרים כדי למצוא כרטיס נורמלי? ב-iDir אנחנו מרכזים עבורך את כל מה ששווה לראות השבוע בלי להתאמץ.<br><br>
+      <strong>מצאו הופעות לפי תאריך:</strong> מצאו הופעות להיום, למחר, לסוף השבוע, לחודש, או לכל שנת 2026 ו-2027, לפי ז'אנר, עיר או שם האולם.<br>
+      <strong>אפס מאמץ:</strong> בחר תאריך, עיר או אמן, והכרטיס אצלך תוך דקה.<br>
+      <strong>שקט נפשי מלא:</strong> רכישה מאובטחת, אחריות מלאה וכרטיסים דיגיטליים שמגיעים ישר אליך למייל.
+    </p>
     <div class="search-box">
-      <input id="q" type="search" placeholder="חיפוש מופע, אמן או קטגוריה…" autocomplete="off" aria-label="חיפוש מופע">
+      <input id="q" type="search" placeholder="חפש אמן, מופע, אולם או עיר… (למשל: הבימה, תל אביב, שלום חנוך)" autocomplete="off" aria-label="חיפוש מופע">
     </div>
   </div>
 </section>
@@ -2196,7 +2205,8 @@ img{max-width:100%;display:block}
 .hero-inner{padding:64px 20px 54px;text-align:center}
 .hero-eyebrow{color:var(--gold-d);font-weight:700;letter-spacing:.5px;margin:0 0 10px;text-transform:uppercase;font-size:13px}
 .hero-title{font-size:clamp(28px,5vw,46px);line-height:1.15;margin:0 0 14px;font-weight:800}
-.hero-sub{color:var(--muted);max-width:620px;margin:0 auto 26px;font-size:18px}
+.hero-sub{color:var(--muted);max-width:640px;margin:0 auto 26px;font-size:17px;text-align:start;line-height:1.7}
+.hero-sub strong{color:var(--ink);font-weight:700}
 .search-box{max-width:560px;margin-inline:auto}
 .search-box input{width:100%;padding:16px 20px;border-radius:16px;border:1px solid var(--line);
   background:var(--card);font-family:inherit;font-size:17px;box-shadow:var(--shadow-sm);outline:none}
@@ -2320,6 +2330,8 @@ span.btn-soldout{cursor:default}
 .footer-col{min-width:0}
 .foot-brand{font-weight:800;color:#fff;font-size:19px;margin-bottom:12px}
 .foot-desc{max-width:360px;margin:0;font-size:14px;line-height:1.85;color:#a99fb4}
+.foot-desc strong{color:#e7dfee;font-weight:700}
+.foot-cta{color:#60a5fa;font-weight:700}
 .footer-title{color:#fff;font-size:15px;font-weight:700;margin:0 0 15px;padding-bottom:9px;
   border-bottom:1px solid rgba(255,255,255,.12)}
 .footer-links{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
