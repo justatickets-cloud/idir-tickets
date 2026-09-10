@@ -285,11 +285,11 @@ function siteFooter() {
       <h3 class="footer-title">אירועים ותרבות</h3>
       <ul class="footer-links">
         <li><a href="/רשימת-אמנים/">רשימת אמנים ומופעים</a></li>
-        <li><a href="/#section=הופעות">הופעות מוזיקה חיות</a></li>
-        <li><a href="/#section=תיאטרון">הצגות תיאטרון</a></li>
-        <li><a href="/#section=סטנדאפ">מופעי סטנדאפ ובידור</a></li>
-        <li><a href="/#section=ילדים">הצגות ילדים ומשפחה</a></li>
-        <li><a href="/#section=קלאסי">מוזיקה קלאסית וקונצרטים</a></li>
+        <li><a href="/shows/">הופעות מוזיקה חיות</a></li>
+        <li><a href="/plays/">הצגות תיאטרון</a></li>
+        <li><a href="/standup/">מופעי סטנדאפ ובידור</a></li>
+        <li><a href="/kids/">הצגות ילדים ומשפחה</a></li>
+        <li><a href="/classical/">מוזיקה קלאסית וקונצרטים</a></li>
       </ul>
     </div>
 
@@ -300,7 +300,8 @@ function siteFooter() {
         <li><a href="/הופעות-בירושלים/">הופעות והצגות בירושלים</a></li>
         <li><a href="/הופעות-בחיפה/">אירועי תרבות בחיפה והצפון</a></li>
         <li><a href="/הופעות-בבאר-שבע/">מופעים בבאר שבע והדרום</a></li>
-        <li><a href="/#city=לטרון">קונצרטים בלטרון ובית ג'מל</a></li>
+        <li><a href="/venues/אולם-מנזר-אמאוס-ניקופוליס/">קונצרטים במנזר לטרון</a></li>
+        <li><a href="/venues/מנזר-בית-גמל/">קונצרטים במנזר בית ג'מל</a></li>
       </ul>
     </div>
 
@@ -2686,22 +2687,62 @@ const APP_JS = `(function(){
   // כפתור טעינה מדורגת
   if(loadMoreBtn) loadMoreBtn.addEventListener('click', loadMore);
 
-  // כיבוד קישורי פוטר בסגנון /#section=... או /#city=...
+  // כיבוד קישורי hash בסגנון /#section=... /#city=... /#venue=... /#date=...
+  // כולל ערכים "ידידותיים" שלא תואמים בדיוק לשם ה-chip (למשל "קלאסי" -> "הופעות מוזיקה קלאסית", "סטנדאפ" -> "סטנד אפ").
+  function normVal(s){ return (s||'').replace(/['’\\s]/g,'').toLowerCase(); }
+  var SECTION_ALIASES={ 'תיאטרון':'הצגות', 'הצגות תיאטרון':'הצגות' };
+  // אוסף הערכים החוקיים לכל סוג פילטר: section/date מה-chips; city/venue מהערכים האמיתיים של הכרטיסים
+  // (ערים כמו "לטרון" קיימות רק בכרטיסים/בתפריט, לא כ-chip).
+  function validValues(key){
+    if(key==='section' || key==='date'){
+      return [].slice.call(document.querySelectorAll('.chip[data-filter="'+key+'"]'))
+        .map(function(c){return c.getAttribute('data-value');}).filter(Boolean);
+    }
+    var attr = key==='city' ? 'data-city' : 'data-venue';
+    var set={};
+    [].forEach.call(document.querySelectorAll('['+attr+']'),function(c){
+      (c.getAttribute(attr)||'').split('|').forEach(function(x){ if(x) set[x]=1; });
+    });
+    return Object.keys(set);
+  }
+  function resolveValue(key, v){
+    var vals=validValues(key);
+    // 1) התאמה מדויקת
+    if(vals.indexOf(v)>-1) return v;
+    // 2) alias ידני (section)
+    if(key==='section' && SECTION_ALIASES[v] && vals.indexOf(SECTION_ALIASES[v])>-1) return SECTION_ALIASES[v];
+    // 3) התאמה גמישה: הכלה אחרי נרמול (התעלמות מרווחים/גרשים/רישיות)
+    var nv=normVal(v);
+    if(nv){
+      for(var i=0;i<vals.length;i++){
+        var ncv=normVal(vals[i]);
+        if(ncv===nv || ncv.indexOf(nv)>-1 || nv.indexOf(ncv)>-1) return vals[i];
+      }
+    }
+    return null; // אין התאמה -> נשארים ב"הכל" ולא מרוקנים את המסך
+  }
   function applyHash(){
     var h=(location.hash||'').replace(/^#/,'');
     if(!h) return;
-    var m=/^(section|city)=(.*)$/.exec(decodeURIComponent(h));
-    if(!m) return;
-    var f=m[1], v=m[2];
-    state[f]=v;
-    if(f==='city'){
-      syncCityUI(v);
-    } else {
-      [].forEach.call(document.querySelectorAll('.chip[data-filter="'+f+'"]'),function(c){
-        c.classList.toggle('is-active', c.getAttribute('data-value')===v);
+    var changed=false;
+    try{
+      var params=new URLSearchParams(h);
+      params.forEach(function(rawVal, key){
+        if(['section','city','venue','date'].indexOf(key)===-1) return;
+        var real=resolveValue(key, rawVal);
+        if(real===null) return;
+        state[key]=real;
+        if(key==='city') syncCityUI(real);
+        else if(key==='venue') syncVenueUI(real);
+        else {
+          [].forEach.call(document.querySelectorAll('.chip[data-filter="'+key+'"]'),function(c){
+            c.classList.toggle('is-active', c.getAttribute('data-value')===real);
+          });
+        }
+        changed=true;
       });
-    }
-    apply();
+    }catch(e){}
+    if(changed) apply();
   }
   window.addEventListener('hashchange',applyHash);
   applyHash();
