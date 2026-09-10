@@ -273,7 +273,7 @@ function siteFooter() {
     <div class="footer-col footer-about">
       <div class="foot-brand">${escText(BRAND.nameHe)} · ${escText(BRAND.nameEn)}</div>
       <p class="foot-desc">
-        <strong>iDir · הכרטיסים שלך, תרבות בלי כאב ראש</strong><br>
+        <strong>iDir · הכרטיסים שלך לתרבות בלי כאב ראש</strong><br>
         פורטל התרבות והאירועים של ישראל. אצלנו תמצאו כרטיסים לכל מופעי המוזיקה, הצגות תיאטרון, מופעי סטנד-אפ, פסטיבלים והצגות ילדים בכל רחבי הארץ.<br><br>
         <strong>iDir · מצאו הופעות לפי תאריך:</strong> מצאו הופעות להיום, למחר, לסוף השבוע, לחודש זה, או לכל שנת 2026 ו-2027, לפי ז'אנר, עיר או שם האולם.<br><br>
         <strong>שקט נפשי ואבטחה:</strong> לוח מועדים מעודכן בזמן אמת, רכישה מאובטחת לחלוטין וכרטיסים שמגיעים ישירות אליך.<br><br>
