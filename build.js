@@ -2270,6 +2270,16 @@ function buildAdsTxt() {
   fs.writeFileSync(path.join(BRAND.outDir, 'ads.txt'), BRAND.adsTxt + '\n', 'utf8');
 }
 
+/* ------------------------------ אימות Bing Webmaster ------------------- */
+function buildBingAuth() {
+  const xml = `<?xml version="1.0"?>
+<users>
+	<user>84919E5223369CB1E1E5CB1A50CED563</user>
+</users>
+`;
+  fs.writeFileSync(path.join(BRAND.outDir, 'BingSiteAuth.xml'), xml, 'utf8');
+}
+
 /* --- הפניות 301 מהמבנה הישן למבנה ההיררכי החדש ---
    Cloudflare מסיר .html ב-308 לפני _redirects, לכן המקור הוא הצורה הנקייה /shows/[id]. --- */
 function buildRedirects(shows) {
@@ -2989,6 +2999,7 @@ function run() {
   const newsCount = buildNews(shows);
   buildSitemap(shows);
   buildAdsTxt();
+  buildBingAuth();
   buildRedirects(shows);
 
   const totalSeances = shows.reduce((n, s) => n + ((s.Seances || []).length), 0);
