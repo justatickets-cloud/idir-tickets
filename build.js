@@ -1657,9 +1657,31 @@ ${grid}`;
   };
 }
 
+// עמוד נחיתה ממוקד המרות: מופעי סוכות 2026 (מזוהים לפי folder="sukkot")
+function sukkot2026Article(shows) {
+  const picks = shows.filter(s => (s.filters || []).some(f => f && f.folder === 'sukkot'))
+    .sort((a, b) => String(a.dateFrom || '').localeCompare(String(b.dateFrom || '')));
+  if (!picks.length) return null;
+  const grid = `<div class="grid">\n${picks.map(showCard).join('\n').replace(/לפרטים וכרטיסים/g, 'להזמנת כרטיסים')}\n</div>`;
+  const bodyHtml = `<p class="mag-lead">חג הסוכות מתקרב, ואיתו חופשת חול המועד הארוכה והאתגר שכל הורה מכיר: איך למלא את הימים בחוויות איכותיות ובלתי נשכחות לילדים, בלי לבזבז שעות על חיפושים? עשינו את העבודה הקשה בשבילכם. סיננו, בחרנו וריכזנו במקום אחד את הפקות הענק, מחזות הזמר והצגות הילדים המושקעות ביותר של סוכות 2026.</p>
+<p>במקום לקפוץ בין עשרות אתרים מבלבלים, כאן תמצאו את כל ההופעות פרוסות בצורה ברורה, לפי תאריכים, ערים ואולמות בכל רחבי הארץ. עם רכישה מאובטחת, אפס תקלות, וכרטיסים דיגיטליים שמגיעים ישירות אליכם לנייד, מעולם לא היה קל יותר לארגן את הבילוי המשפחתי בחג.</p>
+<p><strong>שימו לב:</strong> חול המועד סוכות הוא שיא העונה, והמקומות השווים באולמות המרכזיים ובשעות הנוחות ביותר (הצגות הבוקר ואחר הצהריים) אוזלים ראשונים. אל תחכו לרגע האחרון שבו יישארו רק מושבים בקצוות האולם.</p>
+<p>גללו מטה, בחרו את ההצגה המושלמת עבור הילדים שלכם, שריינו עכשיו את המושבים הטובים ביותר, ותבטיחו לעצמכם סוכות מלא בקסם, שקט נפשי, וזמן איכות משפחתי אמיתי.</p>
+${grid}`;
+  return {
+    slug: 'הצגות-סוכות-2026',
+    title: 'מופעי סוכות 2026: המדריך המלא להצגות הילדים המובילות בישראל',
+    description: 'המדריך המלא להצגות ומופעי סוכות 2026 לילדים בישראל: הפקות ענק, מחזות זמר והצגות ילדים לחול המועד לפי תאריכים, ערים ואולמות, עם רכישה מאובטחת במקום אחד.',
+    date: ymdStr(israelToday()),
+    author: BRAND.nameHe,
+    image: (picks.find(s => s.image) || {}).image || '',
+    bodyHtml,
+  };
+}
+
 function buildMagazine(shows) {
   const mdArticles = loadMdArticles();
-  const generated = [hanukkah2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows), faqArticle()].filter(Boolean);
+  const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows), faqArticle()].filter(Boolean);
   const genSlugs = new Set(generated.map(a => a.slug));
   let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
   articles.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
