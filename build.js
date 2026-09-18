@@ -1633,9 +1633,31 @@ function buildLandingPages(shows) {
   return results.length;
 }
 
+// עמוד נחיתה ממוקד המרות: מופעי חנוכה 2026 (מזוהים לפי "חנוכה" בשם המופע)
+function hanukkah2026Article(shows) {
+  // מזוהים לפי התיוג הרשמי של בראבו (folder="hanukkah"), לא לפי השם — תופס את כל 40+ ההצגות
+  const picks = shows.filter(s => (s.filters || []).some(f => f && f.folder === 'hanukkah'))
+    .sort((a, b) => String(a.dateFrom || '').localeCompare(String(b.dateFrom || '')));
+  if (!picks.length) return null;
+  // CTA ייעודי לעמוד הנחיתה: "להזמנת כרטיסים" (רק כאן, לא משנה את showCard הגלובלי)
+  const grid = `<div class="grid">\n${picks.map(showCard).join('\n').replace(/לפרטים וכרטיסים/g, 'להזמנת כרטיסים')}\n</div>`;
+  const bodyHtml = `<p class="mag-lead">חנוכה 2026 מגיע, וזה הזמן המושלם לצאת עם הילדים לחוויה שלא שוכחים. ריכזנו עבורכם במקום אחד את מיטב הצגות ומופעי חנוכה לילדים ולכל המשפחה בכל רחבי הארץ, כדי שתוכלו לבחור מהר, לבדוק תאריכים וערים, ולהזמין כרטיסים בראש שקט לפני שהמקומות הטובים נגמרים.</p>
+${grid}
+<p>המקומות למופעי החג נחטפים מהר. בחרו את ההצגה שתעשה לילדים את החופש, ותפסו מקום עכשיו לחוויה משפחתית בלתי נשכחת.</p>`;
+  return {
+    slug: 'הצגות-חנוכה-2026',
+    title: 'מופעי חנוכה 2026: כל ההצגות המומלצות לילדים במקום אחד',
+    description: 'ריכזנו את מיטב מופעי והצגות חנוכה 2026 לילדים ולכל המשפחה בישראל, עם תאריכים, ערים, מחירים והזמנת כרטיסים מאובטחת במקום אחד.',
+    date: ymdStr(israelToday()),
+    author: BRAND.nameHe,
+    image: (picks.find(s => s.image) || {}).image || '',
+    bodyHtml,
+  };
+}
+
 function buildMagazine(shows) {
   const mdArticles = loadMdArticles();
-  const generated = [weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows), faqArticle()].filter(Boolean);
+  const generated = [hanukkah2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows), faqArticle()].filter(Boolean);
   const genSlugs = new Set(generated.map(a => a.slug));
   let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
   articles.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
