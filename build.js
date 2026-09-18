@@ -22,7 +22,6 @@ const BRAND = {
   limit: 0, // 0 = כל המופעים ; מספר חיובי = מגבלה (למשל 10 לפיילוט)
   adsenseClient: 'ca-pub-0718695615942520',
   adsTxt: 'google.com, pub-0718695615942520, DIRECT, f08c47fec0942fa0',
-  ga4: 'G-SPHBFXVSJW',
   gtm: 'GTM-56QB7SS5',
 };
 
@@ -223,14 +222,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','${BRAND.gtm}');</script>
 <!-- End Google Tag Manager -->
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=${BRAND.ga4}"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', '${BRAND.ga4}');
-</script>
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(canonical)}">
