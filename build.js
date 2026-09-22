@@ -1383,13 +1383,44 @@ function magArticlePage(a) {
 }
 
 // כתבת עומק נצחית: הפסטיבלים והאירועים הגדולים של 2027 (First-mover SEO)
-function festivals2027Article() {
+function festivals2027Article(shows) {
   const linkV = (kw, label) => {
     const v = VENUE_REGISTRY.find(x => x.hall.includes(kw) && x.shows.length > 0);
     return v ? `<a href="${esc(v.url)}">${escText(label)}</a>` : `<strong>${escText(label)}</strong>`;
   };
-  const image = (VENUE_REGISTRY.flatMap(v => v.shows).find(s => s.image) || {}).image || '';
+  // CRO: מלאי מופעי 2027 עם כפתור רכישה ישיר לקופה (אפס חיכוך, לא הפניה לעמוד המופע)
+  const is2027 = s => String(s.date).slice(0, 4) === '2027';
+  const first2027 = sh => (sh.Seances || []).filter(is2027).map(s => s.date).sort()[0] || '';
+  const s2027 = (shows || []).filter(sh => (sh.Seances || []).some(is2027))
+    .sort((a, b) => first2027(a).localeCompare(first2027(b)));
+  const buyCard = (show) => {
+    const ses = (show.Seances || []).filter(is2027);
+    const se = ses.filter(s => s.link).sort((a, b) => String(a.date).localeCompare(b.date))[0] || ses[0] || {};
+    const buyUrl = se.link ? affiliateUrl(se.link) : show._url;
+    const cities = [...new Set(ses.map(s => s.city).filter(Boolean))];
+    const cityText = cities.slice(0, 2).join(' · ') + (cities.length > 2 ? ' ועוד' : '');
+    return `<article class="card">
+    <a class="card-media" href="${esc(buyUrl)}" target="_blank" rel="noopener sponsored" aria-label="${esc(show.name)}">
+      <img loading="lazy" src="${esc(show.image)}" alt="${esc(show.name)}">
+      <span class="card-badge">${escText(show.section)}</span>
+    </a>
+    <div class="card-body">
+      <h3 class="card-title"><a href="${esc(buyUrl)}" target="_blank" rel="noopener sponsored">${escText(show.name)}</a></h3>
+      <p class="card-meta"><span class="ico-cal">${formatDate(se.date)}</span>${cityText ? `<span class="ico-pin">${escText(cityText)}</span>` : ''}</p>
+      <div class="card-foot">
+        <span class="card-price">${priceLabel(show.priceMin, show.priceMax)}</span>
+        <a class="btn btn-primary" href="${esc(buyUrl)}" target="_blank" rel="noopener sponsored">הזמן עכשיו</a>
+      </div>
+    </div>
+  </article>`;
+  };
+  const grid2027 = s2027.length
+    ? `<h2>כל מופעי 2027, להזמנה מיידית</h2>\n<p>${s2027.length} אירועים כבר פתוחים להזמנה. בחרו את המופע ולחצו "הזמן עכשיו" כדי לעבור ישירות לרכישה מאובטחת.</p>\n<div class="grid">\n${s2027.map(buyCard).join('\n')}\n</div>`
+    : '';
+  const image = (s2027.find(s => s.image) || VENUE_REGISTRY.flatMap(v => v.shows).find(s => s.image) || {}).image || '';
   const bodyHtml = `<p>שנת 2027 מסתמנת כבר עכשיו כאחת מעונות התרבות העמוסות והמרתקות שידעה ישראל. אמנים בינלאומיים גדולים מסמנים חזרה לבמות המקומיות, פסטיבלי הענק הפתוחים ממשיכים לצבור תאוצה, והביקוש לכרטיסים למופעים המבוקשים צפוי להיות גבוה מאי פעם. מי שמכיר את עולם ההופעות יודע: ההיערכות המוקדמת היא ההבדל בין לתפוס מקום בשורה הראשונה לבין להישאר בחוץ. ריכזנו עבורכם מדריך מקיף לכל מה שצפוי בשנת 2027, לפי עונות וז'אנרים, יחד עם טיפים מנצחים להזמנת כרטיסים חכמה ומוקדמת.</p>
+
+${grid2027}
 
 <h2>פסטיבלי האביב והפסח 2027</h2>
 <p>עונת האביב פותחת את השנה באנרגיה מיוחדת. חופשת הפסח מביאה איתה שפע של אירועים פתוחים לכל המשפחה, פסטיבלי מוזיקה בחיק הטבע ומופעים באתרי מורשת ברחבי הארץ. זו התקופה שבה אמפיתיאטראות פתוחים ואתרים היסטוריים הופכים לבמות קסומות, עם מזג אוויר נעים שמאפשר לשבת בחוץ בשעות הערב. פסטיבלי האביב נוטים להימכר מהר במיוחד, שכן הם משלבים חופשה, טבע ותרבות במקום אחד.</p>
@@ -1681,7 +1712,7 @@ ${grid}`;
 
 function buildMagazine(shows) {
   const mdArticles = loadMdArticles();
-  const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(), mustSee2027Article(shows), faqArticle()].filter(Boolean);
+  const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(shows), mustSee2027Article(shows), faqArticle()].filter(Boolean);
   const genSlugs = new Set(generated.map(a => a.slug));
   let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
   articles.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
