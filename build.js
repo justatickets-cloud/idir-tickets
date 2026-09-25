@@ -250,7 +250,9 @@ ${head}
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${BRAND.gtm}"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
+<a class="skip-link" href="#content">דלג לתוכן הראשי</a>
 ${siteHeader()}
+<div id="content" tabindex="-1"></div>
 ${body}
 ${siteFooter()}
 ${a11yWidget()}
@@ -2794,6 +2796,25 @@ html.a11y-contrast-high .btn,html.a11y-contrast-high .btn-primary{background:#ff
 html.a11y-contrast-high .card-badge,html.a11y-contrast-high .pill{background:#ffe14d !important;color:#000 !important}
 @media(max-width:560px){
   .a11y-widget{bottom:14px;left:14px}
+}
+/* ===== skip link, mobile nav, reduced motion ===== */
+.skip-link{position:absolute;top:-80px;right:12px;z-index:1100;background:var(--plum);color:#fff;padding:10px 18px;border-radius:0 0 12px 12px;font-weight:700;transition:top .15s}
+.skip-link:focus{top:0;outline:3px solid var(--gold);outline-offset:2px}
+#content{outline:none}
+.top-nav a{white-space:nowrap}
+.brand{flex-shrink:0}
+.top-nav{min-width:0}
+@media(max-width:560px){
+  .top-nav{gap:12px}
+  .top-nav a{font-size:14px}
+}
+@media(max-width:400px){
+  .site-logo{height:30px}
+  .top-nav{gap:10px}
+  .top-nav a{font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
 }`;
 
 const APP_JS = `(function(){
