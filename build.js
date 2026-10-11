@@ -2291,6 +2291,15 @@ function buildShow(show) {
     ? `המופע ${escText(show.name)}${leadVenue ? ` מתקיים ב${leadVenue}` : ''}${leadCity ? `, ${leadCity}` : ''}. הכרטיסים למופע אזלו כרגע.`
     : `המופע ${escText(show.name)} יתקיים${leadDate ? ` בתאריך ${leadDate}` : ''}${leadTime ? ` בשעה ${leadTime}` : ''}${leadVenue ? ` ב${leadVenue}` : ''}${leadCity ? `, ${leadCity}` : ''}. כרטיסים זמינים להזמנה באתר${leadPrice ? ` החל ממחיר של ${leadPrice}` : ''}.`;
 
+
+  // סיכום לוח ההופעות (מחושב מהפיד, תמיד עדכני): מספר הופעות, ערים וטווח תאריכים
+  const sesSorted = (show.Seances || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const sumCities = [...new Set(sesSorted.map(z => z.city).filter(Boolean))];
+  const dm = d => new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(String(d).slice(0, 10) + 'T00:00:00Z'));
+  const scheduleSummary = (!sold && sesSorted.length > 1)
+    ? ` בסך הכול ${sesSorted.length} הופעות${sumCities.length > 1 ? ` ב-${sumCities.length} ערים (${sumCities.slice(0, 6).join(', ')}${sumCities.length > 6 ? ' ועוד' : ''})` : ''}, בין ${dm(sesSorted[0].date)} ל-${dm(sesSorted[sesSorted.length - 1].date)}.`
+    : '';
+
   const body = `
 <nav class="breadcrumb wrap">
   <a href="/">בית</a> <span>›</span> <a href="/${categorySlug(show.section)}/">${escText(show.section)}</a> <span>›</span> <span class="current">${escText(show.name)}</span>
@@ -2319,7 +2328,7 @@ function buildShow(show) {
 
   <div class="wrap show-grid">
     <section class="show-desc">
-      <p class="show-lead">${aiLede}</p>
+      <p class="show-lead">${aiLede}${escText(scheduleSummary)}</p>
       <h2>על המופע</h2>
       <div class="rte">${safeHtml(show.description)}</div>
     </section>
