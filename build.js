@@ -2526,6 +2526,12 @@ function buildRedirects(shows) {
     lines.push(`/magazine/${m.from} ${dest} 301`);
     lines.push(`/magazine/${m.from}/ ${dest} 301`);
   }
+  // כתובות קצרות לסרטונים (302, עונתי): idir.co.il/חנוכה
+  for (const k of ["חנוכה","hanukkah"]) {
+    const dest = '/magazine/' + encodeURI('הצגות-חנוכה-2026') + '/?utm_source=video&utm_medium=short_link&utm_campaign=hanukkah2026';
+    lines.push(`/${encodeURI(k)} ${dest} 302`);
+    lines.push(`/${encodeURI(k)}/ ${dest} 302`);
+  }
   fs.writeFileSync(path.join(BRAND.outDir, '_redirects'), lines.join('\n') + '\n', 'utf8');
 }
 
