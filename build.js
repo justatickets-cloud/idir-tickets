@@ -2338,6 +2338,50 @@ ${picks.map(showCard).join('\n')}
   </section>`;
 }
 
+// מופעים עם תוכן ייחודי שיצאו מהפיד: העמוד נשאר (לא 404) עם התוכן ומופעים מאותה קטגוריה. 90 יום אחרי שנראו לאחרונה
+const ENDED_KEEP_DAYS = 90;
+function loadEndedShows(liveShows) {
+  let arc = {};
+  try { arc = JSON.parse(fs.readFileSync(path.join(__dirname, 'content', 'archive', 'shows-archive.json'), 'utf8')); } catch (e) { return []; }
+  const live = new Set(liveShows.map(x => String(x.id)));
+  const today = new Date();
+  const raw = Object.entries(arc)
+    .filter(([id, a]) => !live.has(id) && ENRICHMENTS[id] && ENRICHMENTS[id].paragraph && (today - new Date(a.lastSeen)) / 864e5 <= ENDED_KEEP_DAYS)
+    .map(([, a]) => a.show);
+  const ended = normalizeShows(raw);
+  assignShowUrls(ended);
+  return ended;
+}
+function buildEndedShows(ended) {
+  for (const show of ended) {
+    const e = ENRICHMENTS[String(show.id)];
+    const canonical = `${BRAND.domain}${show._url}`;
+    const related = relatedShowsSection(show).replace(/<h2 class="section-title">[^<]*<\/h2>/, '<h2 class="section-title">מופעים שאפשר להזמין עכשיו</h2>');
+    const body = `
+<nav class="breadcrumb wrap">
+  <a href="/">בית</a> <span>›</span> <a href="/${categorySlug(show.section)}/">${escText(show.section)}</a> <span>›</span> <span class="current">${escText(show.name)}</span>
+</nav>
+<article class="show-page show-ended">
+  <section class="wrap show-hero">
+    <div class="show-hero-body">
+      <h1>${escText(show.name)}</h1>
+      <div class="ended-notice"><strong>ההופעות של המופע הזה הסתיימו כרגע</strong><p>כשיתפרסמו תאריכים חדשים הם יופיעו כאן. בינתיים, הנה מופעים דומים שאפשר להזמין אליהם כרטיסים:</p></div>
+    </div>
+  </section>
+  ${related}
+  <section class="wrap show-enrichment">
+    <h2>על ${escText(show.name)}</h2>
+    <p class="show-enrichment-lead">${escText(e.paragraph)}</p>
+    <p class="hanukkah-hub-link"><a href="/${encodeURI(categorySlug(show.section))}/">לכל המופעים בקטגוריה ›</a></p>
+  </section>
+</article>`;
+    const html = page({ title: `${show.name} | ההופעות הסתיימו`, description: stripTags(e.paragraph).slice(0, 155), canonical, head: show.image ? `<meta property="og:image" content="${esc(show.image)}">` : '', body });
+    const dir = path.join(BRAND.outDir, ...show._dir.split('/'));
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+  }
+}
+
 function buildShow(show) {
   const cities = [...new Set((show.Seances || []).map(s => s.city).filter(Boolean))];
   const rows = (show.Seances || []).map(s => seanceRow(show, s)).join('\n');
@@ -2624,6 +2668,8 @@ img{max-width:100%;display:block}
 .venue-chips .chip{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .hanukkah-more{margin-top:34px}
+.ended-notice{margin-top:14px;padding:16px 18px;border-radius:12px;background:rgba(255,200,61,.12);border:1px solid rgba(255,200,61,.45)}
+.ended-notice p{margin:6px 0 0}
 .hanukkah-hub-link{margin-top:16px;font-weight:700;text-align:center}
 .related{margin-bottom:34px;padding-bottom:30px;border-bottom:1px solid var(--line)}
 .related .section-title{margin-bottom:16px}
@@ -3297,6 +3343,9 @@ function run() {
   HANUKKAH_SHOWS = shows.filter(isHanukkahShow);
   ALL_LIVE_SHOWS = shows;
   shows.forEach(buildShow);
+  const endedShows = loadEndedShows(shows);
+  buildEndedShows(endedShows);
+  console.log(`· עמודי "הסתיים" עם תוכן ייחודי: ${endedShows.length}`);
   buildIndex(shows);
   buildStaticPages();
   const hubCounts = buildHubPages(shows);
@@ -3308,7 +3357,7 @@ function run() {
   const landingCount = buildLandingPages(shows);
   const magazineCount = buildMagazine(shows);
   const newsCount = buildNews(shows);
-  buildSitemap(shows);
+  buildSitemap([...shows, ...endedShows]); // עמודי "הסתיים" נשארים במפת האתר
   buildAdsTxt();
   buildBingAuth();
   buildRedirects(shows);

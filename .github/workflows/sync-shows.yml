@@ -29,16 +29,19 @@ jobs:
           # אם ה-URL פרטי, הגדר אותו ב-GitHub Secrets בשם BRAVO_FEED_URL
           BRAVO_FEED_URL: ${{ secrets.BRAVO_FEED_URL }}
 
+      - name: 🗂 Archive enriched shows (ended pages stay, no 404)
+        run: node archive-shows.js
+
       - name: 🚀 Commit & Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           # בדיקה האם shows.json אכן השתנה
-          if git diff --quiet shows.json; then
+          if git diff --quiet shows.json content/archive; then
             echo "No changes found in shows.json. Skipping commit."
           else
-            git add shows.json
+            git add shows.json content/archive
             git commit -m "chore: auto-sync shows feed"
             git push origin main
           fi
