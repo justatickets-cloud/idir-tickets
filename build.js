@@ -468,7 +468,7 @@ function buildStaticPages(shows = []) {
 
 <h2>הסיפור שלנו</h2>
 <p>לשם איידיר יש היסטוריה ארוכה: בין 2008 ל-2016 האתר idir.co.il היה אחד מאתרי המאמרים הגדולים בישראל, עם אלפי כותבים ועשרות אלפי מאמרים. אחרי כמה שנים שבהן לא פעל, הוא חזר בסוף אוגוסט 2026, הפעם כאתר כרטיסים להופעות ולאירועים.</p>
-<p>התחלנו למכור כרטיסים ב-2012, דרך האתר justatickets.com, שפעל עד 2024. ב-2013 התחלנו לעבוד עם בראבו, מערכת הכרטיסים הישראלית, ובין 2013 ל-2018 מכרנו דרכה כרטיסים להופעות בישראל, בעיקר דרך האתר justatickets.co.il ובפרסומים ברשתות החברתיות. באותן שנים מכרנו במקביל כרטיסים לאירועים בארצות הברית דרך TicketNetwork, כך שיש לנו ניסיון של יותר מ-14 שנים בשוק הכרטיסים בישראל ובעולם.</p>
+<p>התחלנו למכור כרטיסים ב-2012, ובשנים שעברו מאז צברנו ניסיון רב במכירת כרטיסים להופעות ולאירועים, גם בישראל וגם בחו"ל. את העבודה עם בראבו, מערכת הכרטיסים הישראלית, התחלנו כבר ב-2013. בסך הכול יש לנו יותר מ-14 שנים של ניסיון בשוק הכרטיסים.</p>
 <p>בשנים האלה למדנו מה באמת חשוב למי שקונה כרטיס: לדעת בדיוק מתי ואיפה המופע, כמה זה עולה, ואם הוא מתאים לו. איידיר כרטיסים נבנה כדי לתת את המידע הזה בצורה ברורה ומעודכנת.</p>
 
 <h2>מה תמצאו באתר</h2>
@@ -1344,6 +1344,88 @@ function familyWeekendArticle(shows) {
   };
 }
 
+// מדריך נצחי: הצגות ילדים. כל מספר ועובדה מחושבים מהפיד בכל בנייה (בלי טענות שלא מופיעות בנתונים)
+function kidsShowsGuide(shows) {
+  const today = ymdStr(israelToday());
+  const plain = t => String(t || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/\s+/g, ' ');
+  const kids = shows.filter(x => KIDS_SECTIONS.has(x.section) && x.section !== 'אטרקציות')
+    .map(x => ({ s: x, next: (x.Seances || []).filter(z => z.date >= today).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)) }))
+    .filter(x => x.next.length);
+  if (kids.length < 10) return null;
+  const nm = x => plain(x.s.name);
+  const groups = [
+    { h: 'מיני אופרות לילדים', p: 'אופרות מוכרות בגרסה קצרה ומותאמת לילדים, עם זמרים סולנים ופסנתר. דרך טובה להכיר לילדים מוזיקה קלאסית.', test: x => /מיני אופרה|אופרה לילדים/.test(nm(x)) },
+    { h: 'מחזות זמר והפקות גדולות', p: 'הפקות מוזיקליות עם שירים, ריקודים ותפאורה, שמתאימות לבילוי של כל המשפחה.', test: x => /מחזמר/.test(nm(x)) },
+    { h: 'תיאטרון מחול, בלט ומופעים על הקרח', p: 'סיפורים שמסופרים בעיקר דרך תנועה ומחול, כך שגם ילדים צעירים יכולים ליהנות בלי לעקוב אחרי הרבה טקסט.', test: x => /מחול|בלט|על הקרח|פלמנקו/.test(nm(x)) },
+    { h: 'שעת סיפור', p: 'מפגשים קצרים ואינטימיים יותר, שמתאימים בדרך כלל לגיל הרך.', test: x => x.s.section === 'שעת סיפור' },
+    { h: 'קונצרטים לילדים', p: 'מופעי מוזיקה שבנויים במיוחד לקהל צעיר.', test: x => x.s.section === 'קונצרטים לילדים' },
+    { h: 'קרקס', p: 'מופעים חזותיים עם אקרובטיקה ולהטוטים.', test: x => x.s.section === 'קרקס' },
+  ];
+  const used = new Set();
+  const item = x => {
+    const se = x.next[0];
+    const more = x.next.length === 2 ? ' · ועוד מועד אחד' : x.next.length > 2 ? ` · ועוד ${x.next.length - 1} מועדים` : '';
+    const price = x.s.priceMin ? ` · החל מ-${x.s.priceMin} ש"ח` : '';
+    return `<li><a href="${esc(x.s._url)}"><strong>${escText(x.s.name)}</strong></a><br><span class="mag-sect">${formatDate(se.date)}${se.time ? ' בשעה ' + formatTime(se.time) : ''}${se.city ? ' · ' + escText(se.city) : ''}${more}${price}</span></li>`;
+  };
+  const byDate = (a, b) => (a.next[0].date + a.next[0].time).localeCompare(b.next[0].date + b.next[0].time);
+  const groupHtml = groups.map(g => {
+    const list = kids.filter(x => !used.has(x) && g.test(x)).sort(byDate);
+    if (!list.length) return '';
+    list.forEach(x => used.add(x));
+    return `<h2>${g.h} (${list.length})</h2>\n<p>${g.p}</p>\n<ul class="mag-picks">${list.slice(0, 12).map(item).join('\n')}</ul>`;
+  }).join('\n');
+  // תיאטרון אורנה פורת: ההפקה הגדולה בלוח
+  const op = kids.filter(x => !used.has(x) && /אורנה פורת/.test(nm(x))).sort(byDate);
+  const opAll = kids.filter(x => /אורנה פורת/.test(nm(x)));
+  const opHalls = [...new Set(opAll.flatMap(x => x.next.map(z => z.hall)).filter(Boolean))];
+  op.forEach(x => used.add(x));
+  const opHtml = opAll.length >= 5 ? `<h2>תיאטרון אורנה פורת לילדים ולנוער (${opAll.length} הצגות)</h2>
+<p>התיאטרון עם הכי הרבה הצגות ילדים בלוח כרגע: ${opAll.length} הפקות שונות, שעולות ב-${opHalls.length} אולמות. ההצגות הקרובות:</p>
+<ul class="mag-picks">${op.slice(0, 12).map(item).join('\n')}</ul>` : '';
+  const rest = kids.filter(x => !used.has(x)).sort(byDate);
+  const soon = rest.filter(x => x.next[0].date <= ymdStr(addDays(israelToday(), 21)));
+  const restHtml = soon.length ? `<h2>עוד הצגות ילדים בשבועות הקרובים (${soon.length})</h2>
+<p>הצגות תיאטרון לילדים שיש להן מועד בשלושת השבועות הקרובים, לפי סדר התאריכים${soon.length > 15 ? ', 15 הראשונות' : ''}.</p>
+<ul class="mag-picks">${soon.slice(0, 15).map(item).join('\n')}</ul>` : '';
+  // ערים
+  const cityCount = {};
+  kids.forEach(x => new Set(x.next.map(z => z.city).filter(Boolean)).forEach(c => { cityCount[c] = (cityCount[c] || 0) + 1; }));
+  const cities = Object.entries(cityCount).sort((a, b) => b[1] - a[1]);
+  const cityLink = c => { const cp = CITY_PAGES.find(p => p.city === c); return cp ? `<a href="/${encodeURI(cp.slug)}">${escText(c)}</a>` : escText(c); };
+  const cityHtml = `<h2>איפה יש הכי הרבה הצגות ילדים</h2>
+<ul class="mag-picks">${cities.slice(0, 8).map(([c, n]) => `<li>${cityLink(c)}: ${n} הצגות</li>`).join('\n')}</ul>
+<p>בסך הכול יש הצגות ילדים ב-${cities.length} ערים ויישובים.</p>`;
+  // טיפים מתוך נוסחי ההפקות
+  const txt = kids.map(x => plain(x.s.description));
+  const nAge = txt.filter(t => /מתחת לגיל/.test(t)).length;
+  const nTicket = txt.filter(t => /חייב בכרטיס/.test(t)).length;
+  const nLate = txt.filter(t => /מאחרים|לאחר תחילת/.test(t)).length;
+  const prices = kids.map(x => Number(x.s.priceMin)).filter(n => n > 0).sort((a, b) => a - b);
+  const median = prices.length ? prices[Math.floor(prices.length / 2)] : 0;
+  const tips = `<h2>כדאי לדעת לפני שמזמינים</h2>
+<ul class="mag-picks">
+<li><strong>מגבלת גיל:</strong> ב-${nAge} מתוך ${kids.length} ההפקות כתוב במפורש שילדים מתחת לגיל מסוים לא יורשו להיכנס. בדקו את הגיל בעמוד ההצגה לפני ההזמנה.</li>
+${nTicket ? `<li><strong>כרטיס לכל ילד:</strong> ב-${nTicket} הפקות מצוין שכל צופה חייב בכרטיס, גם ילד שיושב על הברכיים.</li>` : ''}
+${nLate ? `<li><strong>הגיעו בזמן:</strong> בחלק מההפקות אין כניסה אחרי תחילת ההצגה.</li>` : ''}
+${median ? `<li><strong>מחירים:</strong> מחיר הכרטיס הזול ביותר בהצגות הילדים בלוח נע בין ${prices[0]} ל-${prices[prices.length - 1]} ש"ח, ובחצי מההצגות הוא ${median} ש"ח או פחות.</li>` : ''}
+<li><strong>יותר ממועד אחד:</strong> להרבה הצגות יש כמה מועדים ובכמה ערים, ובעמוד ההצגה אפשר לראות את כולם ולבחור את הנוח לכם.</li>
+</ul>`;
+  const hk = shows.filter(x => (x.filters || []).some(f => f && f.folder === 'hanukkah')).length;
+  const intro = `<p class="mag-lead">בלוח יש כרגע ${kids.length} הצגות ומופעים לילדים, ב-${cities.length} ערים ויישובים ברחבי הארץ. ריכזנו אותם לפי סוג המופע, כדי שיהיה קל למצוא את מה שמתאים לילדים שלכם: הצגות תיאטרון, מיני אופרות, מחזות זמר, מחול, שעת סיפור ועוד.</p>
+<p>הנתונים בעמוד מתעדכנים אוטומטית מלוח ההופעות, כך שהמועדים והמחירים תמיד עדכניים.${hk ? ` מחפשים משהו לחג? יש לנו <a href="${HANUKKAH_HUB}">מדריך נפרד להצגות חנוכה 2026</a> עם ${hk} הצגות.` : ''}</p>`;
+  const outro = `<p>לכל הצגות הילדים בלוח, כולל סינון לפי עיר ותאריך, היכנסו ל<a href="/kids/">עמוד הצגות הילדים</a>. לבילוי הקרוב, ראו גם את <a href="/magazine/${encodeURI('הצגות-ילדים-ומופעים-לסוף-השבוע')}/">הצגות הילדים לסוף השבוע</a>.</p>`;
+  return {
+    slug: 'הצגות-ילדים-המדריך-המלא',
+    title: 'הצגות ילדים: המדריך המלא לכל ההצגות והמופעים לילדים בישראל',
+    description: `${kids.length} הצגות ומופעים לילדים ב-${cities.length} ערים: הצגות תיאטרון, מיני אופרות, מחזות זמר, מחול ושעת סיפור, עם מועדים ומחירים מעודכנים.`,
+    date: today,
+    author: BRAND.nameHe,
+    image: (opAll.find(x => x.s.image) || kids.find(x => x.s.image) || { s: {} }).s.image || '',
+    bodyHtml: [intro, groupHtml, opHtml, restHtml, cityHtml, tips, outro].join('\n'),
+  };
+}
+
 // מדריך אולמות נצחי (Evergreen) — מקשר לעמודי האולמות הייעודיים
 function venuesSeatingGuide() {
   const top = [...VENUE_REGISTRY].sort((a, b) => b.shows.length - a.shows.length).slice(0, 12);
@@ -1777,7 +1859,7 @@ ${grid}`;
 
 function buildMagazine(shows) {
   const mdArticles = loadMdArticles();
-  const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), venuesSeatingGuide(), festivals2027Article(shows), mustSee2027Article(shows), faqArticle()].filter(Boolean);
+  const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), kidsShowsGuide(shows), venuesSeatingGuide(), festivals2027Article(shows), mustSee2027Article(shows), faqArticle()].filter(Boolean);
   const genSlugs = new Set(generated.map(a => a.slug));
   let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
   articles.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
