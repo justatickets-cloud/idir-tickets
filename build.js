@@ -1419,6 +1419,75 @@ ${median ? `<li><strong>מחירים:</strong> מחיר הכרטיס הזול ב
   };
 }
 
+// מדריכי 2027 לפי תחום. כל מספר, תאריך, עיר ומחיר מחושבים מהפיד בכל בנייה; תיאורי המופעים לקוחים מהתוכן הייחודי שכבר נבדק עובדתית.
+const GUIDES_2027 = [
+  { slug: 'קונצרטים-קלאסיים-2027', title: 'קונצרטים קלאסיים 2027: המדריך המלא לעונה', sections: ['הופעות מוזיקה קלאסית', 'אופרה'],
+    noun: 'קונצרטים', lead: 'מוזיקה קלאסית, בארוק, אופרה ומוזיקה קאמרית', tipTitle: 'טיפים למנויים ולחובבי קלאסיקה',
+    tips: ['תזמורות והרכבים רבים מופיעים באותה תוכנית בכמה ערים בתוך ימים ספורים, כך שאפשר לבחור את האולם הקרוב אליכם.', 'בקונצרטים עם סולנים אורחים, התוכנית ושמות המבצעים מתעדכנים לפעמים לקראת המועד. כדאי לבדוק את עמוד הקונצרט לפני ההגעה.'] },
+  { slug: 'הצגות-ילדים-2027', title: 'הצגות ילדים 2027: כל ההצגות לפי חודשים', sections: ['הצגות ילדים', 'קונצרטים לילדים', 'שעת סיפור'],
+    noun: 'הצגות', lead: 'הצגות ילדים, מחזות זמר לכל המשפחה ושעות סיפור', tipTitle: 'כדאי לדעת לפני שמזמינים הצגת ילדים',
+    tips: ['בהרבה הפקות מצוין שילדים מתחת לגיל מסוים לא יורשו להיכנס, ושכל צופה חייב בכרטיס. את הפרטים תמצאו בעמוד של כל הצגה.', 'להצגות רבות יש כמה מועדים בכמה ערים. אם התאריך לא מתאים, בדקו מועד אחר באותו עמוד.'] },
+  { slug: 'הופעות-זמרים-ולהקות-2027', title: 'הופעות 2027: זמרים, להקות וג\'אז לפי חודשים', sections: ['הופעות', 'הופעות רוק', "הופעות ג'אז ובלוז"],
+    noun: 'הופעות', lead: 'הופעות של זמרים ולהקות, ערבי מחווה, רוק וג\'אז', tipTitle: 'טיפים להזמנת כרטיסים להופעות',
+    tips: ['בחלק מהמועדונים המקומות אינם מסומנים וההושבה היא סביב שולחנות. הפרטים מופיעים בעמוד של כל הופעה.', 'כדאי לבדוק אם יש לאותה הופעה מועד נוסף בעיר אחרת, לפעמים במחיר שונה.'] },
+  { slug: 'תיאטרון-מחזות-זמר-ומחול-2027', title: 'תיאטרון, מחזות זמר ומחול 2027: מה עולה השנה', sections: ['הצגות', 'מחזמר', 'הופעות מחול ובלט'],
+    noun: 'מופעים', lead: 'הצגות תיאטרון, מחזות זמר ומופעי מחול ובלט', tipTitle: 'כדאי לדעת לפני ההצגה',
+    tips: ['בהרבה הצגות לא תותר כניסת מאחרים, ולכן כדאי להגיע מוקדם.', 'בחלק מההפקות השחקנים מתחלפים בין המועדים. הליהוק המלא מופיע בעמוד של כל הצגה.'] },
+];
+const HE_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+function guide2027Article(shows, g) {
+  const secs = new Set(g.sections);
+  const items = shows.filter(s => secs.has(s.section))
+    .map(s => ({ s, d: (s.Seances || []).filter(z => z.date >= '2027-01-01' && z.date <= '2027-12-31').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)) }))
+    .filter(x => x.d.length);
+  if (items.length < 6) return null;
+  const firstSentence = t => { const m = String(t || '').replace(/s+/g, ' ').match(/^[^.!?]{20,260}[.!?]/); return m ? m[0] : ''; };
+  const cities = [...new Set(items.flatMap(x => x.d.map(z => z.city)).filter(Boolean))];
+  const months = {};
+  items.forEach(x => { const m = +x.d[0].date.slice(5, 7) - 1; (months[m] = months[m] || []).push(x); });
+  const monthKeys = Object.keys(months).map(Number).sort((a, b) => a - b);
+  const prices = items.map(x => Math.min(...x.d.map(z => Number(z.priceMin) || Infinity))).filter(isFinite).sort((a, b) => a - b);
+  const line = x => {
+    const se = x.d[0];
+    const more = x.d.length === 2 ? ' · ועוד מועד אחד ב-2027' : x.d.length > 2 ? ` · ועוד ${x.d.length - 1} מועדים ב-2027` : '';
+    const p = Math.min(...x.d.map(z => Number(z.priceMin) || Infinity));
+    return `<li><a href="${esc(x.s._url)}"><strong>${escText(x.s.name)}</strong></a><br><span class="mag-sect">${formatDate(se.date)}${se.time ? ' בשעה ' + formatTime(se.time) : ''}${se.city ? ' · ' + escText(se.city) : ''}${more}${isFinite(p) ? ` · החל מ-${p} ש"ח` : ''}</span></li>`;
+  };
+  // מומלצים: מופעים עם תוכן ייחודי שנבדק, לפי מספר המועדים ב-2027
+  const featured = items.filter(x => ENRICHMENTS[String(x.s.id)] && ENRICHMENTS[String(x.s.id)].paragraph)
+    .sort((a, b) => b.d.length - a.d.length).slice(0, 6)
+    .map(x => ({ x, t: firstSentence(ENRICHMENTS[String(x.s.id)].paragraph) })).filter(f => f.t);
+  const featuredHtml = featured.length ? `<h2>בולטים בלוח 2027</h2>
+<p>המופעים עם הכי הרבה מועדים ב-2027 מתוך התחום:</p>
+${featured.map(f => `<h3><a href="${esc(f.x.s._url)}">${escText(f.x.s.name)}</a></h3>
+<p>${escText(f.t)} <span class="mag-sect">${f.x.d.length} מועדים ב-2027. המועד הראשון: ${formatDate(f.x.d[0].date)}${f.x.d[0].city ? ', ' + escText(f.x.d[0].city) : ''}.</span></p>`).join('\n')}` : '';
+  const monthsHtml = monthKeys.map(m => `<h2>${HE_MONTHS[m]} 2027 (${months[m].length})</h2>
+<ul class="mag-picks">${months[m].sort((p, q) => (p.d[0].date + p.d[0].time).localeCompare(q.d[0].date + q.d[0].time)).map(line).join('\n')}</ul>`).join('\n');
+  const cityCount = {};
+  items.forEach(x => new Set(x.d.map(z => z.city).filter(Boolean)).forEach(c => { cityCount[c] = (cityCount[c] || 0) + 1; }));
+  const topCities = Object.entries(cityCount).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const cityLink = c => { const cp = CITY_PAGES.find(p => p.city === c); return cp ? `<a href="/${encodeURI(cp.slug)}">${escText(c)}</a>` : escText(c); };
+  const totalDates = items.reduce((n, x) => n + x.d.length, 0);
+  const intro = `<p class="mag-lead">בלוח של 2027 כבר יש ${items.length} ${g.noun} בתחום של ${g.lead}, עם ${totalDates} מועדים ב-${cities.length} ערים ויישובים. ריכזנו אותם כאן לפי החודש של המועד הראשון בכל מופע, כדי שיהיה קל לתכנן מראש.</p>
+<p>הרשימה מתעדכנת אוטומטית מלוח ההופעות, כך שמופעים חדשים שנפתחים למכירה מצטרפים אליה מעצמם.${prices.length ? ` מחירי הכרטיסים הזולים ביותר נעים בין ${prices[0]} ל-${prices[prices.length - 1]} ש"ח.` : ''}</p>`;
+  const citiesHtml = `<h2>איפה יש הכי הרבה ${g.noun} ב-2027</h2>
+<ul class="mag-picks">${topCities.map(([c, n]) => `<li>${cityLink(c)}: ${n} ${g.noun}</li>`).join('\n')}</ul>`;
+  const tipsHtml = `<h2>${g.tipTitle}</h2>
+<ul class="mag-picks">${g.tips.map(t => `<li>${t}</li>`).join('\n')}
+<li>המועדים והמחירים בעמוד הזה מגיעים ישירות מלוח ההופעות. לפני ההזמנה כדאי לוודא את הפרטים בעמוד המופע.</li></ul>`;
+  const outro = `<p>עוד באתר: <a href="/${encodeURI('הופעות-2027')}">כל ההופעות של 2027</a> · <a href="/magazine/${encodeURI('הופעות-החובה-והאירועים-הגדולים-של-2027')}/">הופעות החובה של 2027</a> · <a href="/magazine/${encodeURI('הפסטיבלים-והאירועים-הגדולים-של-שנת-2027')}/">הפסטיבלים של 2027</a></p>`;
+  const img = (featured[0] && featured[0].x.s.image) || (items.find(x => x.s.image) || { s: {} }).s.image || '';
+  return {
+    slug: g.slug,
+    title: g.title,
+    description: `${items.length} ${g.noun} ב-2027 (${g.lead}) לפי חודשים, עם מועדים, ערים ומחירים מעודכנים.`,
+    date: ymdStr(israelToday()),
+    author: BRAND.nameHe,
+    image: img,
+    bodyHtml: [intro, featuredHtml, monthsHtml, citiesHtml, tipsHtml, outro].join('\n'),
+  };
+}
+
 // מדריך אולמות נצחי (Evergreen) — מקשר לעמודי האולמות הייעודיים
 function venuesSeatingGuide() {
   const top = [...VENUE_REGISTRY].sort((a, b) => b.shows.length - a.shows.length).slice(0, 12);
@@ -1849,7 +1918,7 @@ ${grid}`;
 
 function buildMagazine(shows) {
   const mdArticles = loadMdArticles();
-  const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), kidsShowsGuide(shows), venuesSeatingGuide(), festivals2027Article(shows), mustSee2027Article(shows), faqArticle()].filter(Boolean);
+  const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), kidsShowsGuide(shows), ...GUIDES_2027.map(g => guide2027Article(shows, g)), venuesSeatingGuide(), festivals2027Article(shows), mustSee2027Article(shows), faqArticle()].filter(Boolean);
   const genSlugs = new Set(generated.map(a => a.slug));
   let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
   articles.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
