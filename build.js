@@ -1193,6 +1193,16 @@ function loadEnrichments() {
   try { ENRICHMENTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'content', 'enrichments', 'idir.json'), 'utf8')); }
   catch (e) { ENRICHMENTS = {}; }
 }
+// החלפת טקסט הפיד של בראבו בנוסח שלנו, כשהמקור משובש: about = פסקאות במקום description, announce = שורת הפתיחה
+function applyFeedOverrides(shows) {
+  shows.forEach(show => {
+    const e = ENRICHMENTS[String(show.id)];
+    if (!e) return;
+    if (Array.isArray(e.about) && e.about.length) show.description = e.about.map(p => `<p>${escText(p)}</p>`).join('\n');
+    if (typeof e.announce === 'string' && e.announce.trim()) show.announce = e.announce.trim();
+  });
+  return shows;
+}
 // מקטע ההרחבה בעמוד המופע — מוצג רק אם קיים אישור לאותו id (אחרת מחזיר ריק)
 function enrichmentSection(show) {
   const e = ENRICHMENTS[String(show.id)];
@@ -2526,7 +2536,7 @@ function loadEndedShows(liveShows) {
   const raw = Object.entries(arc)
     .filter(([id, a]) => !live.has(id) && ENRICHMENTS[id] && ENRICHMENTS[id].paragraph && (today - new Date(a.lastSeen)) / 864e5 <= ENDED_KEEP_DAYS)
     .map(([, a]) => a.show);
-  const ended = normalizeShows(raw);
+  const ended = applyFeedOverrides(normalizeShows(raw));
   assignShowUrls(ended);
   return ended;
 }
@@ -3547,6 +3557,7 @@ function run() {
   assignShowUrls(shows);
   assignHubs(shows);
   loadEnrichments();
+  applyFeedOverrides(shows);
 
   if (fs.existsSync(BRAND.outDir)) {
     fs.rmSync(BRAND.outDir, { recursive: true, force: true });
