@@ -234,7 +234,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <!-- מדידת קליקים על "הזמנת כרטיסים" (buy_click) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-SPHBFXVSJW"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-SPHBFXVSJW',{send_page_view:false});
-document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var u;try{u=new URL(a.href)}catch(x){return}if(u.hostname!=='idir.kartisim.co.il'||u.pathname.indexOf('/help')===0)return;
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;var u;try{u=new URL(a.href)}catch(x){return}if(u.hostname!=='idir.kartisim.co.il'||u.pathname.indexOf('/help')===0||u.pathname.indexOf('/bravo_heb/client')===0)return;
 var card=a.closest('.card,tr,li,article');var h1=document.querySelector('h1');
 var name=(card&&card.getAttribute('data-name'))||(h1&&h1.textContent.trim())||document.title;
 gtag('event','buy_click',{show_name:name.slice(0,100),page_type:location.pathname==='/'?'home':location.pathname.split('/')[1]||'other',link_url:a.href.slice(0,300),transport_type:'beacon'})},true);</script>
@@ -2319,6 +2319,26 @@ function buildIndex(shows) {
 
   fs.writeFileSync(path.join(BRAND.outDir, 'index.html'), html, 'utf8');
   build404(body);
+  buildThankYou(body);
+}
+
+// עמוד תודה אחרי רכישה (/ok): בראבו מחזיר לכתובת הזו אחרי תשלום. בלעדיו הגולש קיבל 404
+function buildThankYou(indexBody) {
+  const faq = `/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/`;
+  const body = indexBody.replace(/<p class="hero-eyebrow">[\s\S]*?(?=<div class="search-box">)/,
+    `<p class="hero-eyebrow">iDir · תודה על ההזמנה</p>
+    <h1 class="hero-title">תודה! ההזמנה שלכם התקבלה</h1>
+    <p class="hero-sub">הכרטיסים דיגיטליים ונשלחים אליכם במייל מיד אחרי התשלום, ויום לפני האירוע תגיע גם תזכורת ב-SMS. לא קיבלתם מייל? בדקו בתיבת הספאם. שאלות על ביטולים או קבלת כרטיסים? הכול ב<a href="${faq}">מדריך השאלות הנפוצות</a>. את ההזמנה אפשר לראות ולנהל ב<a href="https://idir.kartisim.co.il/bravo_heb/client/" rel="nofollow">אזור ההזמנות שלי</a>.</p>
+    <p class="hero-sub">ובינתיים, אולי תמצאו כאן את הבילוי הבא:</p>
+    `) + `\n<script>window.gtag&&gtag('event','thank_you_view',{page_location:location.href});</script>`;
+  const html = page({
+    title: `תודה על ההזמנה | ${BRAND.nameHe}`,
+    description: 'ההזמנה התקבלה. הכרטיסים נשלחים במייל מיד אחרי התשלום.',
+    canonical: BRAND.domain + '/ok',
+    head: '<meta name="robots" content="noindex, follow">',
+    body,
+  });
+  fs.writeFileSync(path.join(BRAND.outDir, 'ok.html'), html, 'utf8');
 }
 
 // עמוד 404: אותו חיפוש וסינון של דף הבית + "מופעים דומים" לפי הכתובת הישנה (קטגוריה + מילים מהסלאג).
