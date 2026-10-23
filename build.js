@@ -328,6 +328,9 @@ function siteFooter() {
         <li><a href="/הופעות-בירושלים/">הופעות והצגות בירושלים</a></li>
         <li><a href="/הופעות-בחיפה/">אירועי תרבות בחיפה והצפון</a></li>
         <li><a href="/הופעות-בבאר-שבע/">מופעים בבאר שבע והדרום</a></li>
+        <li><a href="/הופעות-בראשון-לציון/">הופעות והצגות בראשון לציון</a></li>
+        <li><a href="/הופעות-בהרצליה/">הופעות והצגות בהרצליה</a></li>
+        <li><a href="/הופעות-באשדוד/">הופעות והצגות באשדוד</a></li>
         <li><a href="/venues/אולם-מנזר-אמאוס-ניקופוליס/">קונצרטים במנזר לטרון</a></li>
         <li><a href="/venues/מנזר-בית-גמל/">קונצרטים במנזר בית ג'מל</a></li>
       </ul>
@@ -697,82 +700,335 @@ function buildHubPages(shows) {
 }
 
 /* ------------------- עמודי נחיתה סטטיים לפי עיר (City SEO) ------------- */
-const CITY_PAGES = [
-  {
-    slug: 'הופעות-בתל-אביב', city: 'תל אביב-יפו',
-    title: 'הופעות והצגות בתל אביב | כרטיסים למופעים - איידיר כרטיסים',
-    desc: 'כל ההופעות, ההצגות והקונצרטים בתל אביב יפו במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
-    h1: 'כרטיסים להופעות, הצגות ואירועים בתל אביב-יפו',
-    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בתל אביב יפו. עיר התרבות הגדולה בישראל, עם מגוון אירועים לכל טעם לאורך כל השנה.',
-  },
-  {
-    slug: 'הופעות-בירושלים', city: 'ירושלים',
-    title: 'הופעות והצגות בירושלים | כרטיסים למופעים - איידיר כרטיסים',
-    desc: 'כל ההופעות, ההצגות והקונצרטים בירושלים במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
-    h1: 'כרטיסים להופעות, הצגות ואירועים בירושלים',
-    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בירושלים. עיר הבירה מציעה מגוון עשיר של אירועי תרבות, מוזיקה ובידור.',
-  },
-  {
-    slug: 'הופעות-בחיפה', city: 'חיפה',
-    title: 'הופעות והצגות בחיפה | כרטיסים למופעים - איידיר כרטיסים',
-    desc: 'כל ההופעות, ההצגות והקונצרטים בחיפה ובצפון במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
-    h1: 'כרטיסים להופעות, הצגות ואירועים בחיפה',
-    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בחיפה ובצפון הארץ. מצאו את הבילוי המושלם בבירת הצפון.',
-  },
-  {
-    slug: 'הופעות-בבאר-שבע', city: 'באר שבע',
-    title: 'הופעות והצגות בבאר שבע | כרטיסים למופעים - איידיר כרטיסים',
-    desc: 'כל ההופעות, ההצגות והקונצרטים בבאר שבע ובדרום במקום אחד. מועדים מעודכנים וכרטיסים לרכישה מאובטחת.',
-    h1: 'כרטיסים להופעות, הצגות ואירועים בבאר שבע',
-    intro: 'כל המופעים, ההצגות והקונצרטים המתקיימים בבאר שבע ובדרום הארץ. בילוי תרבותי מגוון בבירת הנגב.',
-  },
+// עיר בפיד -> עמוד. כל התוכן מחושב מהפיד בכל בנייה (מספר אירועים, אולמות, ז'אנרים, המועד הקרוב),
+// בלי טענות שאין להן מקור. name: שם לתצוגה (כתיב מלא), near: ערים סמוכות לקישוריות.
+const CITY_DEFS = [
+  { city: 'תל אביב-יפו', slug: 'הופעות-בתל-אביב', name: 'תל אביב יפו', near: ['רמת גן', 'גבעתיים', 'חולון', 'בת ים', 'הרצליה'] },
+  { city: 'ירושלים', slug: 'הופעות-בירושלים', name: 'ירושלים', near: ['מודיעין'] },
+  { city: 'חיפה', slug: 'הופעות-בחיפה', name: 'חיפה', near: ['קרית מוצקין', 'כרמיאל', 'עפולה', 'אור עקיבא'] },
+  { city: 'באר שבע', slug: 'הופעות-בבאר-שבע', name: 'באר שבע', near: ['אשקלון', 'קרית גת', 'אשדוד'] },
+  { city: 'הרצליה', slug: 'הופעות-בהרצליה', name: 'הרצליה', near: ['רעננה', 'רמת השרון', 'תל אביב-יפו', 'כפר סבא'] },
+  { city: 'כפר סבא', slug: 'הופעות-בכפר-סבא', name: 'כפר סבא', near: ['רעננה', 'הרצליה', 'פתח תקווה', 'כפר יונה'] },
+  { city: 'ראשון לציון', slug: 'הופעות-בראשון-לציון', name: 'ראשון לציון', near: ['חולון', 'נס ציונה', 'רחובות', 'בת ים'] },
+  { city: 'פתח תקווה', slug: 'הופעות-בפתח-תקווה', name: 'פתח תקווה', near: ['גני תקווה', 'ראש העין', 'רמת גן', 'כפר סבא'] },
+  { city: 'חולון', slug: 'הופעות-בחולון', name: 'חולון', near: ['בת ים', 'ראשון לציון', 'תל אביב-יפו'] },
+  { city: 'אשדוד', slug: 'הופעות-באשדוד', name: 'אשדוד', near: ['אשקלון', 'יבנה', 'רחובות', 'קרית גת'] },
+  { city: 'רחובות', slug: 'הופעות-ברחובות', name: 'רחובות', near: ['נס ציונה', 'ראשון לציון', 'יבנה', 'קיבוץ גבעת ברנר'] },
+  { city: 'מודיעין', slug: 'הופעות-במודיעין', name: 'מודיעין', near: ['ירושלים', 'ראש העין'] },
+  { city: 'נתניה', slug: 'הופעות-בנתניה', name: 'נתניה', near: ['כפר יונה', 'רעננה', 'הרצליה', 'אור עקיבא'] },
+  { city: 'גני תקווה', slug: 'הופעות-בגני-תקווה', name: 'גני תקווה', near: ['פתח תקווה', 'רמת גן'] },
+  { city: 'קרית מוצקין', slug: 'הופעות-בקריית-מוצקין', name: 'קריית מוצקין', near: ['חיפה', 'כרמיאל'] },
+  { city: 'קיבוץ גבעת ברנר', slug: 'הופעות-בגבעת-ברנר', name: 'קיבוץ גבעת ברנר', near: ['רחובות', 'יבנה', 'נס ציונה'] },
+  { city: 'נס ציונה', slug: 'הופעות-בנס-ציונה', name: 'נס ציונה', near: ['רחובות', 'ראשון לציון'] },
+  { city: 'כרמיאל', slug: 'הופעות-בכרמיאל', name: 'כרמיאל', near: ['חיפה', 'קרית מוצקין', 'עפולה'] },
+  { city: 'רעננה', slug: 'הופעות-ברעננה', name: 'רעננה', near: ['כפר סבא', 'הרצליה', 'נתניה'] },
+  { city: 'אור עקיבא', slug: 'הופעות-באור-עקיבא', name: 'אור עקיבא', near: ['נתניה', 'חיפה'] },
+  { city: 'רמת גן', slug: 'הופעות-ברמת-גן', name: 'רמת גן', near: ['גבעתיים', 'תל אביב-יפו', 'פתח תקווה'] },
+  { city: 'יבנה', slug: 'הופעות-ביבנה', name: 'יבנה', near: ['אשדוד', 'רחובות'] },
+  { city: 'גבעתיים', slug: 'הופעות-בגבעתיים', name: 'גבעתיים', near: ['רמת גן', 'תל אביב-יפו'] },
+  { city: 'אשקלון', slug: 'הופעות-באשקלון', name: 'אשקלון', near: ['אשדוד', 'קרית גת', 'באר שבע'] },
+  { city: 'ראש העין', slug: 'הופעות-בראש-העין', name: 'ראש העין', near: ['פתח תקווה', 'מודיעין'] },
+  { city: 'קרית גת', slug: 'הופעות-בקריית-גת', name: 'קריית גת', near: ['אשקלון', 'באר שבע', 'אשדוד'] },
+  { city: 'כפר יונה', slug: 'הופעות-בכפר-יונה', name: 'כפר יונה', near: ['נתניה', 'כפר סבא'] },
+  { city: 'רמת השרון', slug: 'הופעות-ברמת-השרון', name: 'רמת השרון', near: ['הרצליה', 'רעננה'] },
+  { city: 'עפולה', slug: 'הופעות-בעפולה', name: 'עפולה', near: ['חיפה', 'כרמיאל'] },
+  { city: 'בת ים', slug: 'הופעות-בבת-ים', name: 'בת ים', near: ['חולון', 'תל אביב-יפו', 'ראשון לציון'] },
 ];
-
+const CITY_MIN_SHOWS = 5;   // מתחת לסף: העמוד קיים (בלי 404), אבל noindex ומחוץ ל-sitemap
+const CITY_FIRST = 5;       // כמה כרטיסים גלויים מיד; השאר נפתחים ב"הצג עוד"
+const CITY_PAGES = CITY_DEFS.map(c => ({
+  ...c,
+  inForm: `ב${c.name}`,
+  title: `הופעות והצגות ב${c.name} 2026 | לוח אירועים וכרטיסים | ${BRAND.nameHe}`,
+  h1: `הופעות, הצגות ואירועים ב${c.name}`,
+}));
 // מפת עיר -> עמוד עיר (לקישוריות פנימית מעמודי מופע)
 const cityUrlByCity = {};
 CITY_PAGES.forEach(c => { cityUrlByCity[c.city] = `/${c.slug}/`; });
+const cityByName = Object.fromEntries(CITY_PAGES.map(c => [c.city, c]));
+let CITY_INDEXED = new Set(); // עמודים מעל הסף (ל-sitemap)
 
 // כפתור רכישה צף אחיד לעמודי ריכוז (מובייל בלבד) — גולל לרשת התוצאות
 const HUB_STICKY = `<div class="mobile-cta"><a class="mobile-cta-btn" href="#results">לכל המופעים והכרטיסים ›</a></div>`;
 
+// שם בלי מקף מפריד ("תיאטרון ירושלים - אולם שרובר" -> "תיאטרון ירושלים") ושם מופע במירכאות
+const noDash = t => String(t || '').split(/\s+[-—–]\s+/)[0].trim();
+const heProse = t => String(t).replace(/(^|\s)קרית(?=\s)/g, '$1קריית').replace(/תאטרון/g, 'תיאטרון').replace(/מוסיקה/g, 'מוזיקה').replace(/ראש-העין/g, 'ראש העין');
+const SEC_PROSE = { 'סטנד אפ': 'סטנדאפ', 'הרצאות וכיתות האמן': 'הרצאות וכיתות אמן' };
+const heTitle = t => { const n = heProse(noDash(t).replace(/&nbsp;/g, ' ')); return /^["״]/.test(n) ? n : `"${n}"`; };
+// מספר + שם עצם: 1 -> "אולם אחד", אחרת "6 אולמות"
+const heCount = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
+// עם אות שימוש: heCountP('ב', 6, 'אולם אחד', 'אולמות') -> "ב-6 אולמות" / "באולם אחד"
+const heCountP = (p, n, one, many) => (n === 1 ? p + one : `${p}-${n} ${many}`);
+const todayIso = () => ymdStr(israelToday());
+
+// האירועים הקרובים בעיר: לפי המועד הקרוב באותה עיר
+function cityShows(shows, city) {
+  const t = todayIso();
+  return shows
+    .map(s => ({ s, next: (s.Seances || []).filter(x => x.city === city && x.date >= t).map(x => x.date).sort()[0] }))
+    .filter(x => x.next && !showSoldOut(x.s))
+    .sort((a, b) => a.next.localeCompare(b.next))
+    .map(x => ({ show: x.s, next: x.next }));
+}
+
+// אולמות: אולמות של אותו מבנה ("— אולם 1", "— אולם 2") מוצגים כשם אחד, הקישור לנפוץ שבהם
+function hallSummary(list, seanceOk) {
+  const halls = {};
+  for (const { show } of list) for (const x of show.Seances || []) if (seanceOk(x)) halls[x.hall] = (halls[x.hall] || 0) + 1;
+  const byPlace = {};
+  for (const [h, k] of Object.entries(halls)) {
+    const p = (byPlace[noDash(h)] = byPlace[noDash(h)] || { k: 0, top: h, topK: 0 });
+    p.k += k;
+    if (k > p.topK) { p.top = h; p.topK = k; }
+  }
+  const names = Object.keys(byPlace).sort((a, b) => byPlace[b].k - byPlace[a].k);
+  const links = names.slice(0, 4).map(n => venueUrlByHall[byPlace[n].top] ? `<a href="${esc(venueUrlByHall[byPlace[n].top])}">${escText(heProse(n))}</a>` : escText(heProse(n)));
+  return names.length ? ` ${heCountP('ב', names.length, 'אולם אחד', 'אולמות')}: ${links.join(', ')}${names.length > 4 ? ' ועוד' : ''}.` : '.';
+}
+
+// פסקת פתיחה מנתוני הפיד
+function cityIntro(cfg, list) {
+  const t = todayIso();
+  const ok = x => x.city === cfg.city && x.date >= t;
+  const secs = {};
+  for (const { show } of list) secs[show.section] = (secs[show.section] || 0) + 1;
+  const n = list.length;
+  const parts = [`יש כרגע ${cfg.inForm} ${heCount(n, 'אירוע אחד', 'אירועים')}` + hallSummary(list, ok)];
+  const top = Object.entries(secs).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  if (top.length) parts.push(`הז'אנרים בלוח: ${top.map(([sec, k]) => `<a href="/${encodeURI(categorySlug(sec))}/">${escText(SEC_PROSE[sec] || sec)}</a> (${k})`).join(', ')}.`);
+  if (list[0]) parts.push(`האירוע הקרוב: <a href="${esc(list[0].show._url)}">${escText(heTitle(list[0].show.name))}</a>, ${formatDate(list[0].next)}.`);
+  return parts.map(p => `<p class="hub-intro">${p}</p>`).join('\n');
+}
+
+function nearLinks(cfg) {
+  const items = (cfg.near || []).map(c => cityByName[c]).filter(Boolean);
+  if (!items.length) return '';
+  return `<p class="landing-related">הופעות בסביבה: ${items.map(c => `<a href="/${c.slug}/">${escText(c.name)}</a>`).join(' · ')}</p>`;
+}
+
+// "הצג עוד": CITY_FIRST כרטיסים גלויים, השאר נפתחים ב-10
+const MORE_BTN_SCRIPT = `<script>(function(){var b=document.getElementById('more-btn');if(!b)return;b.addEventListener('click',function(){var h=[].slice.call(document.querySelectorAll('#results .card.is-more'));h.slice(0,10).forEach(function(c){c.classList.remove('is-more')});var r=h.length-10;if(r<=0)b.parentNode.removeChild(b);else b.textContent='הצג עוד ('+r+')'})})();</script>`;
+
+function cardsWithMore(list) {
+  const cards = list.map((x, i) => {
+    const c = showCard(x.show);
+    return i < CITY_FIRST ? c : c.replace('<article class="card', '<article class="card is-more');
+  }).join('\n');
+  const more = list.length > CITY_FIRST
+    ? `<p class="more-wrap"><button type="button" class="btn btn-primary more-btn" id="more-btn">הצג עוד (${list.length - CITY_FIRST})</button></p>` : '';
+  return { html: `<div class="grid" id="results">\n${cards}\n</div>\n${more}`, more };
+}
+
 function buildCityPages(shows) {
   const results = {};
+  CITY_INDEXED = new Set();
   CITY_PAGES.forEach(cfg => {
-    const matched = shows.filter(show =>
-      (show.Seances || []).some(s => s.city === cfg.city));
-
+    const list = cityShows(shows, cfg.city);
+    const indexed = list.length >= CITY_MIN_SHOWS;
+    if (indexed) CITY_INDEXED.add(cfg.slug);
     // Cloudflare מגיש עמוד תיקייה עם סלאש בסוף (slug/ = 200), לכן ה-canonical עם סלאש
     const canonical = `${BRAND.domain}/${cfg.slug}/`;
     const crumb = breadcrumbSchema([
       { name: 'בית', url: BRAND.domain + '/' },
       { name: cfg.h1, url: canonical },
     ]);
-    const cards = matched.map(showCard).join('\n');
-    // פסקה פותחת עובדתית מותאמת AI Overviews
-    const aiLede = `בעמוד זה מרוכזים ${matched.length} מופעים, הצגות וקונצרטים המתקיימים ב${cfg.city}, כולל מועדים, אולמות ומחירים. ניתן להזמין כרטיסים לכל האירועים ישירות מהעמוד.`;
+    const { html: grid, more } = list.length ? cardsWithMore(list) : { html: '', more: '' };
+    const desc = `הופעות והצגות ${cfg.inForm}: ${heCount(list.length, 'אירוע אחד', 'אירועים')} עם מועדים, אולמות ומחירים. כרטיסים אונליין.`;
+    const kidsN = KIDS_CITY_COUNTS[kidsSlug(cfg)] || 0;
 
     const body = `
 <article class="hub">
   <div class="wrap">
     <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <span class="current">${escText(cfg.h1)}</span></nav>
     <h1 class="hub-title">${escText(cfg.h1)}</h1>
-    <p class="show-lead">${escText(aiLede)}</p>
-    <p class="hub-intro">${escText(cfg.intro)}</p>
+    ${list.length ? cityIntro(cfg, list) : ''}
     <div class="results-head">
-      <span class="results-count">${matched.length} מופעים</span>
+      <span class="results-count">${heCount(list.length, 'מופע אחד', 'מופעים')}</span>
     </div>
-    ${matched.length ? `<div class="grid" id="results">\n${cards}\n</div>` : hubEmpty()}
+    ${list.length ? grid : hubEmpty()}
+    ${nearLinks(cfg)}
+    ${kidsN >= KIDS_MIN_SHOWS ? `<p class="landing-related">לילדים ${escText(cfg.inForm)}: <a href="/${kidsSlug(cfg)}/">הצגות ילדים (${kidsN}) ›</a></p>` : ''}
   </div>
 </article>
-${matched.length ? HUB_STICKY : ''}`;
+${list.length ? HUB_STICKY : ''}
+${more ? MORE_BTN_SCRIPT : ''}`;
 
-    const html = page({ title: cfg.title, description: cfg.desc, canonical, head: crumb, body });
+    const head = crumb + (indexed ? '' : '\n<meta name="robots" content="noindex, follow">');
+    const html = page({ title: cfg.title, description: desc, canonical, head, body });
     const dir = path.join(BRAND.outDir, cfg.slug);
     ensureDir(dir);
     fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
-    results[cfg.slug] = matched.length;
+    results[cfg.slug] = list.length;
   });
   return results;
+}
+
+// בלוק בסוף עמוד מופע: עוד 5 אירועים באותה עיר + קישור לכל האירועים בעיר
+function cityMoreSection(show) {
+  const t = todayIso();
+  const first = (show.Seances || []).filter(x => x.date >= t && cityByName[x.city]).sort((a, b) => a.date.localeCompare(b.date))[0];
+  if (!first) return '';
+  const cfg = cityByName[first.city];
+  const list = cityShows(ALL_LIVE_SHOWS, cfg.city).filter(x => x.show !== show);
+  if (!list.length) return '';
+  return `<section class="wrap related city-more">
+    <h2 class="section-title">עוד ${escText(cfg.inForm)}</h2>
+    <div class="grid">
+${list.slice(0, 5).map(x => showCard(x.show)).join('\n')}
+    </div>
+    ${list.length > 5 ? `<p class="hanukkah-hub-link"><a href="/${cfg.slug}/">לכל האירועים ${escText(cfg.inForm)} (${list.length}) ›</a></p>` : ''}
+  </section>`;
+}
+
+/* ------------------- עמודי ילדים (Kids SEO) ------------------- */
+// הצגות ילדים לפי עיר, להיום/מחר/שבת ולפעוטות. הכול מהפיד; גיל לא מנחשים (כמעט לא מופיע בפיד).
+const KIDS_MIN_SHOWS = 5;
+const isKidsShow = s => KIDS_SECTIONS.has(s.section);
+// "לפעוטות": רק מילים מפורשות בשם או בתיאור בפיד
+const TODDLER_NAME = /שעת סיפור|לקטנטנים|לפעוטות|לגיל הרך/;
+const TODDLER_DESC = /לפעוטות|לקטנטנים|לגיל הרך|הגיל הרך|לתינוקות/;
+const TODDLER_NEG = /לא יורש|לא תותר|אסור|אינה מתאימה|אינו מתאים|לא מתאים|לא מומלץ|כרטיס/;
+const isToddlerShow = s => TODDLER_NAME.test(s.name) ||
+  stripTags(s.description).split(/[.!?]+/).some(x => TODDLER_DESC.test(x) && !TODDLER_NEG.test(x));
+const kidsSlug = c => c.slug.replace(/^הופעות-/, 'הצגות-ילדים-');
+let KIDS_INDEXED = new Set();
+let KIDS_CITY_COUNTS = {};
+const ilIso = (offsetDays = 0) => { const d = israelToday(); d.setDate(d.getDate() + offsetDays); return ymdStr(d); };
+const nextSaturdayIso = () => ilIso((6 - israelToday().getDay() + 7) % 7);
+
+function kidsList(shows, seanceOk) {
+  return shows.filter(s => isKidsShow(s) && !showSoldOut(s))
+    .map(s => ({ show: s, next: (s.Seances || []).filter(seanceOk).map(x => x.date).sort()[0] }))
+    .filter(x => x.next)
+    .sort((a, b) => a.next.localeCompare(b.next));
+}
+
+// lead: "יש כרגע באשדוד" / "מחר יש"; noun: [יחיד, רבים]
+function kidsIntro(list, lead, seanceOk, noun = ['הצגת ילדים אחת', 'הצגות ילדים'], oneDay = false) {
+  let morning = 0, sat = 0, hk = 0;
+  for (const { show } of list) {
+    if (isHanukkahShow(show)) hk++;
+    for (const x of show.Seances || []) {
+      if (!seanceOk(x)) continue;
+      if (String(x.time) < '13:00') morning++;
+      if (new Date(x.date).getDay() === 6) sat++;
+    }
+  }
+  const parts = [`${lead} ${heCount(list.length, noun[0], noun[1])}` + hallSummary(list, seanceOk)];
+  const extra = [];
+  if (morning) extra.push(`${heCount(morning, 'מועד אחד', 'מועדים')} בבוקר (עד 13:00)`);
+  if (sat && !oneDay) extra.push(`${heCount(sat, 'מועד אחד', 'מועדים')} בשבת`);
+  if (extra.length) parts.push(`בלוח ${extra.length === 2 ? `${extra[0]} ${heCountP('ו', sat, 'מועד אחד', 'מועדים')} בשבת` : extra[0]}.`);
+  if (hk && hanukkahSeason()) parts.push(`${heCount(hk, 'הצגה אחת עולה', 'הצגות עולות')} בחנוכה, ופרטים נוספים ב<a href="${HANUKKAH_HUB}">מדריך הצגות החנוכה 2026</a>.`);
+  if (list[0]) parts.push(`ההצגה הקרובה: <a href="${esc(list[0].show._url)}">${escText(heTitle(list[0].show.name))}</a>, ${formatDate(list[0].next)}.`);
+  return parts.map(p => `<p class="hub-intro">${p}</p>`).join('\n');
+}
+
+function kidsNavLinks(currentSlug) {
+  const links = [
+    ['הצגות-ילדים-היום', 'היום'],
+    ['הצגות-ילדים-מחר', 'מחר'],
+    ['הצגות-ילדים-בשבת', 'בשבת'],
+    ['הצגות-לפעוטות', 'לפעוטות'],
+  ].filter(([s]) => s !== currentSlug).map(([s, t]) => `<a href="/${s}/">${t}</a>`);
+  const cities = CITY_PAGES.filter(c => KIDS_INDEXED.has(kidsSlug(c)) && kidsSlug(c) !== currentSlug)
+    .map(c => `<a href="/${kidsSlug(c)}/">${escText(c.name)}</a>`);
+  return `<p class="landing-related">הצגות ילדים: ${links.join(' · ')}</p>` +
+    (cities.length ? `\n<p class="landing-related">לפי עיר: ${cities.join(' · ')}</p>` : '');
+}
+
+function writeKidsPage({ slug, title, h1, desc, intro, list, empty, indexed, extraLinks = '' }) {
+  const canonical = `${BRAND.domain}/${slug}/`;
+  const kidsHub = `/${encodeURI(categorySlug('הצגות ילדים'))}/`;
+  const crumb = breadcrumbSchema([
+    { name: 'בית', url: BRAND.domain + '/' },
+    { name: 'הצגות ילדים', url: BRAND.domain + kidsHub },
+    { name: h1, url: canonical },
+  ]);
+  const { html: grid, more } = list.length ? cardsWithMore(list) : { html: '', more: '' };
+  const body = `
+<article class="hub">
+  <div class="wrap">
+    <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <a href="${kidsHub}">הצגות ילדים</a> <span>›</span> <span class="current">${escText(h1)}</span></nav>
+    <h1 class="hub-title">${escText(h1)}</h1>
+    ${intro}
+    ${empty || ''}
+    <div class="results-head"><span class="results-count">${heCount(list.length, 'הצגה אחת', 'הצגות')}</span></div>
+    ${list.length ? grid : hubEmpty()}
+    ${extraLinks}
+    ${kidsNavLinks(slug)}
+  </div>
+</article>
+${list.length ? HUB_STICKY : ''}
+${more ? MORE_BTN_SCRIPT : ''}`;
+  const head = crumb + (indexed ? '' : '\n<meta name="robots" content="noindex, follow">');
+  const dir = path.join(BRAND.outDir, slug);
+  ensureDir(dir);
+  fs.writeFileSync(path.join(dir, 'index.html'), page({ title, description: desc, canonical, head, body }), 'utf8');
+  if (indexed) KIDS_INDEXED.add(slug);
+}
+
+function buildKidsPages(shows) {
+  KIDS_INDEXED = new Set();
+  KIDS_CITY_COUNTS = {};
+  const t = ilIso();
+  const perCity = CITY_PAGES.map(cfg => ({ cfg, ok: x => x.city === cfg.city && x.date >= t }))
+    .map(o => ({ ...o, list: kidsList(shows, o.ok) }));
+  perCity.forEach(o => { KIDS_CITY_COUNTS[kidsSlug(o.cfg)] = o.list.length; if (o.list.length >= KIDS_MIN_SHOWS) KIDS_INDEXED.add(kidsSlug(o.cfg)); });
+
+  perCity.filter(o => o.list.length).forEach(({ cfg, ok, list }) => {
+    writeKidsPage({
+      slug: kidsSlug(cfg),
+      title: `הצגות ילדים ${cfg.inForm} 2026 | כרטיסים | ${BRAND.nameHe}`,
+      h1: `הצגות ילדים ומופעים לילדים ${cfg.inForm}`,
+      desc: `הצגות ילדים ${cfg.inForm}: ${heCount(list.length, 'הצגה אחת', 'הצגות')} עם מועדים, אולמות ומחירים. כרטיסים אונליין.`,
+      intro: kidsIntro(list, `יש כרגע ${cfg.inForm}`, ok),
+      list,
+      indexed: list.length >= KIDS_MIN_SHOWS,
+      extraLinks: `<p class="landing-related"><a href="/${cfg.slug}/">כל ההופעות, ההצגות והאירועים ${escText(cfg.inForm)} ›</a></p>`,
+    });
+  });
+
+  const upcoming = kidsList(shows, x => x.date >= t);
+  const day = (slug, date, title, h1, label) => {
+    const ok = x => x.date === date;
+    const list = kidsList(shows, ok);
+    const empty = list.length ? '' : `<p class="landing-empty">${label} אין הצגות ילדים בלוח. הנה ההצגות הקרובות.</p>`;
+    writeKidsPage({
+      slug, title, h1,
+      desc: `${h1}: מועדים, אולמות ומחירים. כרטיסים אונליין.`,
+      intro: list.length ? kidsIntro(list, `${label} יש`, ok, undefined, true) : '',
+      empty,
+      list: list.length ? list : upcoming.slice(0, 10),
+      indexed: true,
+    });
+    return list.length;
+  };
+  const counts = {
+    today: day('הצגות-ילדים-היום', t, `הצגות ילדים היום | ${BRAND.nameHe}`, 'הצגות ילדים היום', 'היום'),
+    tomorrow: day('הצגות-ילדים-מחר', ilIso(1), `הצגות ילדים מחר | ${BRAND.nameHe}`, 'הצגות ילדים מחר', 'מחר'),
+    saturday: day('הצגות-ילדים-בשבת', nextSaturdayIso(), `הצגות ילדים בשבת | ${BRAND.nameHe}`, 'הצגות ילדים בשבת', 'בשבת'),
+  };
+
+  const tOk = x => x.date >= t;
+  const toddlers = kidsList(shows.filter(isToddlerShow), tOk);
+  writeKidsPage({
+    slug: 'הצגות-לפעוטות',
+    title: `הצגות לפעוטות ולגיל הרך 2026 | כרטיסים | ${BRAND.nameHe}`,
+    h1: 'הצגות לפעוטות ולגיל הרך',
+    desc: `הצגות לפעוטות ולגיל הרך: ${heCount(toddlers.length, 'הצגה אחת', 'הצגות')} עם מועדים, אולמות ומחירים.`,
+    intro: toddlers.length ? kidsIntro(toddlers, 'יש כרגע', tOk, ['הצגה אחת לפעוטות', 'הצגות לפעוטות ולגיל הרך']) : '',
+    list: toddlers,
+    indexed: toddlers.length >= KIDS_MIN_SHOWS,
+  });
+  counts.toddlers = toddlers.length;
+  counts.cities = perCity.filter(o => o.list.length >= KIDS_MIN_SHOWS).length;
+  return counts;
+}
+
+function kidsHubLinks() {
+  return kidsNavLinks('');
 }
 
 // ===================== עמודי ז'אנר (Genre Hubs) =====================
@@ -962,6 +1218,7 @@ function buildGenrePages(shows) {
     <p class="show-lead">${escText(aiLede)}</p>
     <div class="results-head"><span class="results-count">${list.length} מופעים</span></div>
     <div class="grid" id="results">\n${cards}\n</div>
+    ${slug === 'kids' ? kidsHubLinks() : ''}
   </div>
 </article>
 ${HUB_STICKY}`;
@@ -2676,6 +2933,7 @@ ${enrichmentSection(show)}
     <p class="faq-hint faq-hint-center">שאלות על ביטולים או קבלת כרטיסים? <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">קראו במדריך השאלות הנפוצות ›</a></p>
   </section>
 ${hanukkahLinksSection(show) || relatedShowsSection(show)}
+${cityMoreSection(show)}
   ${sold ? '' : `<div class="mobile-cta"><a class="mobile-cta-btn" href="#seances">הזמן כרטיסים עכשיו ›</a></div>`}
 </article>`;
 
@@ -2723,7 +2981,8 @@ function buildSitemap(shows) {
   const urls = [
     { loc: BRAND.domain + '/', pri: '1.0' },
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}`, pri: '0.9' })),
-    ...CITY_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
+    ...CITY_PAGES.filter(p => CITY_INDEXED.has(p.slug)).map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
+    ...[...KIDS_INDEXED].map(slug => ({ loc: `${BRAND.domain}/${slug}/`, pri: '0.8' })),
     ...GENRE_PAGES.map(p => ({ loc: `${BRAND.domain}${p.url}`, pri: '0.8' })),
     { loc: `${BRAND.domain}/רשימת-אמנים/`, pri: '0.7' },
     ...ARTIST_REGISTRY.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.7' })),
@@ -2917,6 +3176,8 @@ img{max-width:100%;display:block}
 .ended-notice p{margin:6px 0 0}
 .hanukkah-hub-link{margin-top:16px;font-weight:700;text-align:center}
 .related{margin-bottom:34px;padding-bottom:30px;border-bottom:1px solid var(--line)}
+.card.is-more{display:none}
+.more-wrap{text-align:center;margin:22px 0 8px}
 .related .section-title{margin-bottom:16px}
 .filters-toggle,.filters-done{display:none}
 @media(max-width:767px){
@@ -3596,7 +3857,9 @@ function run() {
   buildIndex(shows);
   buildStaticPages(shows);
   const hubCounts = buildHubPages(shows);
+  const kidsCounts = buildKidsPages(shows); // לפני הערים: עמוד עיר מקשר לעמוד הילדים שלה
   const cityCounts = buildCityPages(shows);
+  console.log(`· עמודי ילדים: ערים ${kidsCounts.cities}, היום ${kidsCounts.today}, מחר ${kidsCounts.tomorrow}, שבת ${kidsCounts.saturday}, פעוטות ${kidsCounts.toddlers}`);
   const genreCount = buildGenrePages(shows);
   const artistCount = buildArtistsIndex(shows);
   const artistPageCount = buildArtistPages();
