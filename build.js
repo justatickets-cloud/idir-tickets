@@ -17,6 +17,7 @@ const BRAND = {
   domain: 'https://idir.co.il',        // דומיין ראשי
   affiliateBase: 'https://idir.kartisim.co.il', // בסיס רכישה (שותף)
   tagline: 'כל המופעים במקום אחד',
+  altSite: 'https://topafisha.co.il',  // האתר ברוסית (מתג שפה + hreflang)
   outDir: path.join(__dirname, 'dist'),
   dataFile: path.join(__dirname, 'shows.json'),
   limit: 0, // 0 = כל המופעים ; מספר חיובי = מגבלה (למשל 10 לפיילוט)
@@ -219,7 +220,38 @@ function assetUrl(name) {
   return `/assets/${name}?v=${ASSET_VERSIONS[name]}`;
 }
 
-function page({ title, description, canonical, head = '', body }) {
+/* ------------------- קישורים בין השפות (hreflang) ------------------- */
+// מפת מזהה מופע → נתיב באתר השני. נמשכת בזמן הבנייה מ-<altSite>/ids.json,
+// וגיבוי נשמר ב-content/alt-urls.json למקרה שאין רשת.
+const ALT_CACHE = path.join(__dirname, 'content', 'alt-urls.json');
+let ALT_BY_ID = {};
+function loadAltUrls() {
+  try {
+    const out = require('child_process').execFileSync(process.execPath, ['-e',
+      `fetch(${JSON.stringify(BRAND.altSite + '/ids.json')},{signal:AbortSignal.timeout(15000)}).then(r=>{if(!r.ok)throw new Error(r.status);return r.text()}).then(t=>process.stdout.write(t)).catch(()=>process.exit(1))`],
+      { encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'] });
+    const j = JSON.parse(out);
+    if (j && typeof j === 'object' && Object.keys(j).length > 50) {
+      ALT_BY_ID = j;
+      fs.writeFileSync(ALT_CACHE, JSON.stringify(j, null, 0) + '\n', 'utf8');
+      return 'live';
+    }
+  } catch (e) {}
+  try { ALT_BY_ID = JSON.parse(fs.readFileSync(ALT_CACHE, 'utf8')); return 'cache'; } catch (e) { return 'none'; }
+}
+function altUrlOf(show) { const p = ALT_BY_ID[String(show.id)]; return p ? BRAND.altSite + p : ''; }
+function writeIdsMap(shows) {
+  const m = {}; for (const s of shows) if (s._url) m[s.id] = s._url;
+  fs.writeFileSync(path.join(BRAND.outDir, 'ids.json'), JSON.stringify(m), 'utf8');
+}
+function hreflangLinks(canonical, alt) {
+  if (!alt) return '';
+  return `<link rel="alternate" hreflang="he" href="${esc(canonical)}">
+<link rel="alternate" hreflang="ru" href="${esc(alt)}">
+`;
+}
+
+function page({ title, description, canonical, head = '', body, alt = '' }) {
   return `<!doctype html>
 <html lang="he" dir="rtl">
 <head>
@@ -242,7 +274,7 @@ gtag('event','buy_click',{show_name:name.slice(0,100),page_type:location.pathnam
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(canonical)}">
-<meta property="og:type" content="website">
+${hreflangLinks(canonical, alt)}<meta property="og:type" content="website">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${esc(canonical)}">
@@ -268,7 +300,7 @@ ${head}
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 <a class="skip-link" href="#content">דלג לתוכן הראשי</a>
-${siteHeader()}
+${siteHeader(alt)}
 <div id="content" tabindex="-1"></div>
 ${body}
 ${siteFooter()}
@@ -278,16 +310,17 @@ ${a11yWidget()}
 </html>`;
 }
 
-function siteHeader() {
+function siteHeader(alt = '') {
   return `<header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="/" aria-label="${esc(BRAND.nameHe)}">
       <img src="/assets/logo.svg" alt="${esc(BRAND.nameHe)}" class="site-logo" width="188" height="40">
     </a>
     <nav class="top-nav">
-      <a href="/">כל המופעים</a>
+      <a href="/" class="nav-home">כל המופעים</a>
       <a href="/רשימת-אמנים/">רשימת אמנים</a>
       <a href="/magazine/">מגזין</a>
+      <a href="${esc(alt || BRAND.altSite + '/')}" class="lang-switch" hreflang="ru" lang="ru" title="На русском">Русский</a>
     </nav>
   </div>
 </header>`;
@@ -2572,6 +2605,7 @@ function buildIndex(shows) {
     canonical: BRAND.domain + '/',
     head: `<script type="application/ld+json">${JSON.stringify(siteSchema)}</script>`,
     body,
+    alt: BRAND.altSite + '/',
   });
 
   fs.writeFileSync(path.join(BRAND.outDir, 'index.html'), html, 'utf8');
@@ -2944,6 +2978,7 @@ ${cityMoreSection(show)}
     head: eventSchema(show) +
       `\n<meta property="og:image" content="${esc(show.image)}">`,
     body,
+    alt: altUrlOf(show),
   });
 
   const dir = path.join(BRAND.outDir, ...show._dir.split('/'));
@@ -3132,6 +3167,8 @@ img{max-width:100%;display:block}
 .top-nav{display:flex;gap:20px;align-items:center}
 .top-nav a{color:var(--muted);font-weight:600}
 .top-nav a:hover{color:var(--plum)}
+.top-nav .lang-switch{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--plum)}
+.top-nav .lang-switch:hover{background:var(--plum);color:#fff;border-color:var(--plum)}
 
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -3528,6 +3565,7 @@ html.a11y-contrast-high .card-badge,html.a11y-contrast-high .pill{background:#ff
   .top-nav{gap:12px}
   .top-nav a{font-size:14px}
 }
+@media(max-width:480px){.top-nav .nav-home{display:none}}
 @media(max-width:400px){
   .site-logo{height:30px}
   .top-nav{gap:10px}
@@ -3849,7 +3887,9 @@ function run() {
   buildSearchIndex(shows);
   HANUKKAH_SHOWS = shows.filter(isHanukkahShow);
   ALL_LIVE_SHOWS = shows;
+  console.log(`· קישורים לאתר ברוסית: ${loadAltUrls()} (${Object.keys(ALT_BY_ID).length} מופעים)`);
   shows.forEach(buildShow);
+  writeIdsMap(shows);
   const endedShows = loadEndedShows(shows);
   ENDED_KEPT_IDS = new Set(endedShows.map(x => String(x.id)));
   buildEndedShows(endedShows);
