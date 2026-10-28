@@ -225,6 +225,10 @@ function assetUrl(name) {
 // וגיבוי נשמר ב-content/alt-urls.json למקרה שאין רשת.
 const ALT_CACHE = path.join(__dirname, 'content', 'alt-urls.json');
 let ALT_BY_ID = {};
+let ALT_PAGES = []; // [נתיב, [מזהי מופעים]] של עמודי רשימה באתר השני
+const MY_PAGES = [];
+let ALT_HALLS = {}; // מזהה הצגה (seance) → נתיב עמוד האולם באתר השני
+const MY_HALLS = {}; // אותו דבר לעמודים שלנו, נכתב ל-ids.json
 function loadAltUrls() {
   try {
     const out = require('child_process').execFileSync(process.execPath, ['-e',
@@ -232,17 +236,59 @@ function loadAltUrls() {
       { encoding: 'utf8', timeout: 20000, stdio: ['ignore', 'pipe', 'ignore'] });
     const j = JSON.parse(out);
     if (j && typeof j === 'object' && Object.keys(j).length > 50) {
+      // האתר השני עוד לא פרס את רשימת העמודים: שומרים את זו שבגיבוי
+      if (!Array.isArray(j._pages)) { try { const c = JSON.parse(fs.readFileSync(ALT_CACHE, 'utf8')); j._pages = c._pages; j._halls = c._halls; } catch (e) {} }
       ALT_BY_ID = j;
+      ALT_PAGES = Array.isArray(j._pages) ? j._pages : [];
+      ALT_HALLS = j._halls || {};
       fs.writeFileSync(ALT_CACHE, JSON.stringify(j, null, 0) + '\n', 'utf8');
       return 'live';
     }
   } catch (e) {}
-  try { ALT_BY_ID = JSON.parse(fs.readFileSync(ALT_CACHE, 'utf8')); return 'cache'; } catch (e) { return 'none'; }
+  try { ALT_BY_ID = JSON.parse(fs.readFileSync(ALT_CACHE, 'utf8')); ALT_PAGES = Array.isArray(ALT_BY_ID._pages) ? ALT_BY_ID._pages : []; ALT_HALLS = ALT_BY_ID._halls || {}; return 'cache'; } catch (e) { return 'none'; }
 }
 function altUrlOf(show) { const p = ALT_BY_ID[String(show.id)]; return p ? BRAND.altSite + p : ''; }
 function writeIdsMap(shows) {
   const m = {}; for (const s of shows) if (s._url) m[s.id] = s._url;
+  m._pages = MY_PAGES;
+  m._halls = MY_HALLS;
   fs.writeFileSync(path.join(BRAND.outDir, 'ids.json'), JSON.stringify(m), 'utf8');
+}
+// עמודים בלי רשימת מופעים שיש להם עמוד מקביל קבוע
+const STATIC_ALT = { '/privacy': '/privacy', '/terms': '/terms', '/contact': '/contact', '/magazine/': '/magazine/', '/magazine/news/': '/magazine/news/' };
+let ID_BY_PATH = null;
+function pageShowIds(body) {
+  if (!ID_BY_PATH) { ID_BY_PATH = new Map(); for (const s of ALL_LIVE_SHOWS) if (s._url) ID_BY_PATH.set(s._url, String(s.id)); }
+  const ids = new Set();
+  for (const m of body.matchAll(/href="([/][^"#?]+)"/g)) {
+    let p = m[1]; try { p = decodeURI(p); } catch (e) {}
+    const id = ID_BY_PATH.get(p); if (id) ids.add(id);
+  }
+  return [...ids];
+}
+// עמוד רשימה (קטגוריה, עיר, תאריך, אולם, אמן) מותאם לעמוד באתר השני שהמופעים בו הכי חופפים, ורק אם החפיפה יותר מחצי
+const pageKind = p => (p.match(/^[/](venues|artist|magazine)[/]/) || [0, 'list'])[1];
+function matchAltPage(ids, own) {
+  const mine = new Set(ids); let best = '', score = 0, bestOther = '', scoreOther = 0;
+  for (const [p, other] of ALT_PAGES) {
+    let common = 0; for (const id of other) if (mine.has(String(id))) common++;
+    const j = common / (mine.size + other.length - common);
+    if (pageKind(p) !== pageKind(own)) { if (j > scoreOther) { scoreOther = j; bestOther = p; } }
+    else if (j > score) { score = j; best = p; }
+  }
+  if (score > 0.5) return BRAND.altSite + best;
+  return scoreOther > 0.5 && pageKind(own) === 'list' ? BRAND.altSite + bestOther : '';
+}
+// עמוד אולם מותאם לפי מזהי ההצגות באולם, שזהים בשני הפידים. מופע שמסתובב בכמה אולמות לא מבלבל.
+function venueAlt(v) {
+  const votes = {};
+  for (const s of v.shows) for (const se of s.Seances || []) {
+    if (se.hall !== v.hall) continue;
+    MY_HALLS[se.id] = v.url;
+    const p = ALT_HALLS[se.id]; if (p) votes[p] = (votes[p] || 0) + 1;
+  }
+  const best = Object.keys(votes).sort((a, b) => votes[b] - votes[a])[0];
+  return best ? BRAND.altSite + best : '';
 }
 function hreflangLinks(canonical, alt) {
   if (!alt) return '';
@@ -251,7 +297,15 @@ function hreflangLinks(canonical, alt) {
 `;
 }
 
-function page({ title, description, canonical, head = '', body, alt = '' }) {
+function page({ title, description, canonical, head = '', body, alt = '', match = true }) {
+  const own = canonical.slice(BRAND.domain.length);
+  if (!alt && match && own !== '/' && own !== '/ok') {
+    if (STATIC_ALT[own]) alt = BRAND.altSite + STATIC_ALT[own];
+    else {
+      const ids = pageShowIds(body);
+      if (ids.length) { MY_PAGES.push([own, ids]); alt = matchAltPage(ids, own); }
+    }
+  }
   return `<!doctype html>
 <html lang="he" dir="rtl">
 <head>
@@ -1463,6 +1517,8 @@ ${v.shows.length ? HUB_STICKY : ''}`;
       canonical,
       head: crumb + `\n<script type="application/ld+json">${JSON.stringify(placeSchema)}</script>`,
       body,
+      alt: venueAlt(v),
+      match: false,
     });
     const dir = path.join(BRAND.outDir, 'venues', v.slug);
     ensureDir(dir);
@@ -2874,7 +2930,7 @@ function buildEndedShows(ended) {
     <p class="hanukkah-hub-link"><a href="/${encodeURI(categorySlug(show.section))}/">לכל המופעים בקטגוריה ›</a></p>
   </section>
 </article>`;
-    const html = page({ title: `${show.name} | ההופעות הסתיימו`, description: stripTags(e.paragraph).slice(0, 155), canonical, head: show.image ? `<meta property="og:image" content="${esc(show.image)}">` : '', body });
+    const html = page({ title: `${show.name} | ההופעות הסתיימו`, description: stripTags(e.paragraph).slice(0, 155), canonical, head: show.image ? `<meta property="og:image" content="${esc(show.image)}">` : '', body, match: false });
     const dir = path.join(BRAND.outDir, ...show._dir.split('/'));
     ensureDir(dir);
     fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
@@ -2979,6 +3035,7 @@ ${cityMoreSection(show)}
       `\n<meta property="og:image" content="${esc(show.image)}">`,
     body,
     alt: altUrlOf(show),
+    match: false,
   });
 
   const dir = path.join(BRAND.outDir, ...show._dir.split('/'));
@@ -3889,7 +3946,6 @@ function run() {
   ALL_LIVE_SHOWS = shows;
   console.log(`· קישורים לאתר ברוסית: ${loadAltUrls()} (${Object.keys(ALT_BY_ID).length} מופעים)`);
   shows.forEach(buildShow);
-  writeIdsMap(shows);
   const endedShows = loadEndedShows(shows);
   ENDED_KEPT_IDS = new Set(endedShows.map(x => String(x.id)));
   buildEndedShows(endedShows);
@@ -3911,6 +3967,7 @@ function run() {
   buildAdsTxt();
   buildBingAuth();
   buildRedirects(shows);
+  writeIdsMap(shows);
 
   const totalSeances = shows.reduce((n, s) => n + ((s.Seances || []).length), 0);
   const secs = ((Date.now() - t0) / 1000).toFixed(2);
