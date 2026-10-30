@@ -3250,6 +3250,9 @@ function buildRedirects(shows) {
     lines.push(`/${encodeURI(k)} ${dest} 302`);
     lines.push(`/${encodeURI(k)}/ ${dest} 302`);
   }
+  // אתר המאמרים הישן של idir (2007 עד 2014): עשרות אלפי כתובות /articles/... עם קישורים חיצוניים. 301 לדף הבית במקום 404
+  lines.push('/articles/* / 301');
+  lines.push('/articlerss* / 301');
   lines.push(...endedRedirectLines(shows, 1950 - lines.length));
   fs.writeFileSync(path.join(BRAND.outDir, '_redirects'), lines.join('\n') + '\n', 'utf8');
 }
