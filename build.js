@@ -76,6 +76,8 @@ function computeBoilerplate(shows) {
   for (const s of shows) for (const x of new Set(descSentences(s.description))) cnt[x] = (cnt[x] || 0) + 1;
   BOILER = new Set(Object.keys(cnt).filter(x => cnt[x] >= 3));
 }
+// בלי מקפים בכותרות (חוק ברזל 2): מקף בין מילים הופך לפסיק. ה-slug לא משתנה
+const dashToComma = t => String(t || '').replace(/\s+[—–-]+\s+/g, ', ').replace(/[—–]/g, ' ').replace(/\s{2,}/g, ' ').trim();
 function clipDesc(t, n = 155) {
   t = String(t || '').replace(/\s+[—–-]+\s+/g, ', ').replace(/[—–]/g, ' ').trim(); // בלי מקפים (חוק ברזל 2)
   if (t.length <= n) return t;
@@ -279,7 +281,7 @@ function writeIdsMap(shows) {
   fs.writeFileSync(path.join(BRAND.outDir, 'ids.json'), JSON.stringify(m), 'utf8');
 }
 // עמודים בלי רשימת מופעים שיש להם עמוד מקביל קבוע
-const STATIC_ALT = { '/privacy': '/privacy', '/terms': '/terms', '/contact': '/contact', '/magazine/': '/magazine/', '/magazine/news/': '/magazine/news/' };
+const STATIC_ALT = { '/about': '/about', '/privacy': '/privacy', '/terms': '/terms', '/contact': '/contact', '/magazine/': '/magazine/', '/magazine/news/': '/magazine/news/' };
 let ID_BY_PATH = null;
 function pageShowIds(body) {
   if (!ID_BY_PATH) { ID_BY_PATH = new Map(); for (const s of ALL_LIVE_SHOWS) if (s._url) ID_BY_PATH.set(s._url, String(s.id)); }
@@ -322,6 +324,8 @@ function hreflangLinks(canonical, alt) {
 }
 
 function page({ title, description, canonical, head = '', body, alt = '', match = true }) {
+  title = dashToComma(title);
+  body = body.replace(/(<h1[^>]*>)([^<]*)(<\/h1>)/g, (m, a, b, c) => a + dashToComma(b) + c);
   const own = canonical.slice(BRAND.domain.length);
   if (!alt && match && own !== '/' && own !== '/ok') {
     if (STATIC_ALT[own]) alt = BRAND.altSite + STATIC_ALT[own];
@@ -3003,7 +3007,7 @@ function buildShow(show) {
       </div>
       <div class="show-head">
         <span class="pill">${escText(show.section)}</span>
-        <h1 class="show-title">${escText(show.name)}</h1>
+        <h1 class="show-title">${escText(dashToComma(show.name))}</h1>
         <p class="show-announce">${escText(show.announce || '')}</p>
         ${artistUrlByName[show.name] ? `<p class="show-artist-link"><a href="${esc(artistUrlByName[show.name])}">כל ההופעות של ${escText(show.name)} ›</a></p>` : ''}
         <div class="show-facts">
