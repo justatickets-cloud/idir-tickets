@@ -3145,6 +3145,48 @@ function buildBingAuth() {
 </users>
 `;
   fs.writeFileSync(path.join(BRAND.outDir, 'BingSiteAuth.xml'), xml, 'utf8');
+  // מפתח IndexNow (Bing / Yandex): הקובץ מוכיח שהאתר שלנו. הפינג עצמו נשלח מ-indexnow.js ב-GitHub Actions
+  const key = fs.readFileSync(path.join(__dirname, 'indexnow-key.txt'), 'utf8').trim();
+  fs.writeFileSync(path.join(BRAND.outDir, key + '.txt'), key, 'utf8');
+}
+
+/* ------------------------------ llms.txt (מפה לכלי AI) ---------------- */
+// רק נתונים מהפיד ומהגדרות העמודים, בלי מקפים (חוק ברזל 2)
+function buildLlmsTxt(shows) {
+  const clean = t => unent(stripTags(String(t || '').replace(/&nbsp;/g, ' '))).replace(/\s+[—–-]+\s+/g, ', ').replace(/[—–]/g, ' ').replace(/\s+/g, ' ').trim();
+  const head = t => clean(String(t).split(' | ')[0]);
+  const today = ymdStr(israelToday());
+  const sections = {};
+  shows.forEach(s => { sections[s.section] = (sections[s.section] || 0) + 1; });
+  const upcoming = shows
+    .map(s => ({ s, z: (s.Seances || []).filter(z => String(z.date) >= today).sort((a, b) => String(a.date).localeCompare(String(b.date)))[0] }))
+    .filter(x => x.z && ENRICHMENTS[String(x.s.id)] && ENRICHMENTS[String(x.s.id)].paragraph)
+    .sort((a, b) => String(a.z.date).localeCompare(String(b.z.date)))
+    .slice(0, 40);
+  const ddmm = d => { const [y, m, dd] = String(d).split('-'); return `${+dd}.${+m}.${y}`; };
+  const txt = `# ${BRAND.nameHe} (idir.co.il)
+
+> לוח הופעות, הצגות ואירועי תרבות בכל הארץ: מוזיקה, תיאטרון, הצגות ילדים, מחול, קלאסי, סטנדאפ ותערוכות (${shows.length} מופעים בלוח). המועדים, האולמות והמחירים מתעדכנים מהקופה הרשמית פעמיים ביום. הזמנת הכרטיסים נעשית בקופה הרשמית, דרך הקישור בעמוד של כל מופע. גרסה ברוסית: ${BRAND.altSite}
+
+## עמודים מרכזיים
+- [דף הבית](${BRAND.domain}/): כל הלוח עם סינון לפי תאריך, עיר וסוג מופע
+${HUB_PAGES.map(p => `- [${head(p.title)}](${BRAND.domain}/${p.slug}): ${clean(p.desc)}`).join('\n')}
+
+## קטגוריות
+${Object.entries(sections).sort((a, b) => b[1] - a[1]).map(([sec, n]) => `- [${clean(sec)}](${BRAND.domain}/${categorySlug(sec)}/): ${n}`).join('\n')}
+
+## ערים
+${CITY_PAGES.map(c => `- [${clean(c.h1)}](${BRAND.domain}/${c.slug}/)`).join('\n')}
+
+## מופעים קרובים
+${upcoming.map(({ s, z }) => `- [${clean(s.name)}](${BRAND.domain}${s._url}): ${ddmm(z.date)}${z.city ? ', ' + clean(z.city) : ''}`).join('\n')}
+
+## מידע
+- [אודות](${BRAND.domain}/about)
+- [יצירת קשר](${BRAND.domain}/contact)
+- [תנאי שימוש](${BRAND.domain}/terms)
+`;
+  fs.writeFileSync(path.join(BRAND.outDir, 'llms.txt'), txt, 'utf8');
 }
 
 /* --- הפניות 301 מהמבנה הישן למבנה ההיררכי החדש ---
@@ -3993,6 +4035,7 @@ function run() {
   buildSitemap([...shows, ...endedShows]); // עמודי "הסתיים" נשארים במפת האתר
   buildAdsTxt();
   buildBingAuth();
+  buildLlmsTxt(shows);
   buildRedirects(shows);
   writeIdsMap(shows);
 
