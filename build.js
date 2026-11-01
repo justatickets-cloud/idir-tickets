@@ -482,7 +482,8 @@ function siteFooter() {
       <a href="/privacy">מדיניות פרטיות</a> ·
       <a href="/terms">תנאי שימוש</a> ·
       <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות נפוצות ועזרה</a> ·
-      <a href="/contact">יצירת קשר</a>
+      <a href="/contact">יצירת קשר</a> ·
+      <a href="https://t.me/idir_israel" target="_blank" rel="noopener">הערוץ שלנו בטלגרם</a>
     </div>
     <div class="foot-disclaimer">רכישת כרטיסים | המידע, לוחות המועדים והכרטיסים מתעדכנים באופן שוטף.</div>
   </div>
