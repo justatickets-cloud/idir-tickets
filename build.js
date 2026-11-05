@@ -483,8 +483,7 @@ function siteFooter() {
       <a href="/terms">תנאי שימוש</a> ·
       <a href="/magazine/${encodeURI('שאלות-נפוצות-רכישת-כרטיסים')}/">שאלות נפוצות ועזרה</a> ·
       <a href="/contact">יצירת קשר</a> ·
-      <a href="https://t.me/idir_israel" target="_blank" rel="noopener">טלגרם</a> ·
-      <a href="https://www.youtube.com/@idir.tickets" target="_blank" rel="noopener">יוטיוב</a>
+      <a href="https://t.me/idir_israel" target="_blank" rel="noopener">טלגרם</a>
     </div>
     <div class="foot-disclaimer">רכישת כרטיסים | המידע, לוחות המועדים והכרטיסים מתעדכנים באופן שוטף.</div>
   </div>
@@ -2683,7 +2682,7 @@ function buildIndex(shows) {
         name: BRAND.nameHe,
         url: BRAND.domain + '/',
         logo: BRAND.domain + '/assets/logo.svg',
-        sameAs: ['https://www.youtube.com/@idir.tickets', 'https://t.me/idir_israel'],
+        sameAs: ['https://t.me/idir_israel'],
       },
     ],
   };
