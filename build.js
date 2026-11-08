@@ -1458,9 +1458,71 @@ function assignHubs(shows) {
     });
 }
 
+// "ל" + שם: "המאהבת" -> "למאהבת"
+const toL = n => (/^ה\S/.test(n) ? "ל" + n.slice(1) : "ל" + n);
+// פרטי עמוד אמן מתוך הפיד בלבד (תאריך, יום, שעה, אולם, עיר, מחיר) — בלי טקסט שאין לו מקור
+function artistDetails(a) {
+  const clean = a.name.replace(/\s+בהופעה$/, '').trim() || a.name;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const ses = [];
+  a.shows.forEach(s => (s.Seances || []).forEach(z => {
+    if (z && z.date && z.date >= todayIso) ses.push({ ...z, _show: s });
+  }));
+  ses.sort((x, y) => (x.date + (x.time || '')).localeCompare(y.date + (y.time || '')));
+  const year = ses.length ? ses[0].date.slice(0, 4) : '';
+  if (!ses.length) return { clean, year, lead: '', faqHtml: '', faqSchema: null };
+  // בלי מקפים מפרידים (שמות אולמות בפיד: "מוזיאון ... - אולם רקאנטי"), ובלי עיר כפולה
+  const noDash = t => String(t || '').replace(/\s+[-–—]\s+/g, ', ').replace(/[–—]/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  const where = z => {
+    const hall = noDash(z.hall), city = noDash(z.city).replace(/האיזורית/g, 'האזורית'); // תיקון כתיב (Scribens)
+    return [hall, city && !hall.includes(city) ? city : ''].filter(Boolean).join(', ');
+  };
+  const when = z => `ביום ${formatDate(z.date)}${z.time ? ` בשעה ${formatTime(z.time)}` : ''}`;
+  const first = ses[0];
+  const cities = [...new Set(ses.map(z => z.city).filter(Boolean))];
+  const mins = ses.map(z => Number(z.priceMin)).filter(n => n > 0);
+  const maxs = ses.map(z => Number(z.priceMax)).filter(n => n > 0);
+  const pMin = mins.length ? Math.min(...mins) : 0;
+  const pMax = maxs.length ? Math.max(...maxs) : 0;
+  const priceTxt = pMin ? priceLabel(pMin, pMax) : '';
+
+  const leadParts = [];
+  const nextTxt = `${when(first)}${where(first) ? ` ב${where(first)}` : ''}`;
+  leadParts.push(ses.length === 1
+    ? `${clean}: ההופעה הקרובה היא ${nextTxt}.`
+    : `${clean}: ${ses.length} הופעות קרובות${cities.length > 1 ? ` ב-${cities.length} ערים` : ''}. ההופעה הקרובה היא ${nextTxt}.`);
+  if (priceTxt) leadParts.push(`מחיר כרטיס: ${priceTxt}.`);
+  leadParts.push(`בעמוד הזה מרוכזות כל ההופעות, ומכל הופעה אפשר לעבור ישירות לרכישת כרטיסים.`);
+  const lead = leadParts.join(' ');
+
+  const faq = [];
+  faq.push({ q: `מתי ההופעה הקרובה של ${clean}?`, a: `ההופעה הקרובה היא ${nextTxt}.` });
+  if (ses.length > 1) {
+    const list = ses.slice(0, 8).map(z => `${formatDate(z.date)}${where(z) ? `, ${where(z)}` : ''}`).join('; ');
+    faq.push({ q: `אילו הופעות של ${clean} יש בקרוב?`, a: `${list}${ses.length > 8 ? '; ועוד הופעות ברשימה בעמוד' : ''}.` });
+  } else if (where(first)) {
+    faq.push({ q: `היכן מתקיימת ההופעה הקרובה של ${clean}?`, a: `ב${where(first)}.` });
+  }
+  if (priceTxt) faq.push({ q: `כמה עולה כרטיס ${toL(clean)}?`, a: `מחיר כרטיס: ${priceTxt}. המחיר הסופי והמקומות הפנויים מוצגים בעמוד הרכישה.` });
+  faq.push({ q: `איך קונים כרטיסים ${toL(clean)}?`,
+    a: `בוחרים הופעה ברשימה בעמוד הזה ולוחצים על כפתור הרכישה. הרכישה מאובטחת, והכרטיסים נשלחים בדיגיטל.` });
+
+  const faqHtml = `<section class="artist-faq">
+      <h2>שאלות נפוצות על ההופעות של ${escText(clean)}</h2>
+      ${faq.map(f => `<details class="faq-item"><summary>${escText(f.q)}</summary><div class="faq-answer">${escText(f.a)}</div></details>`).join('\n      ')}
+    </section>`;
+  const faqSchema = {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: faq.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  };
+  return { clean, year, lead, faqHtml, faqSchema };
+}
+
 function buildArtistPages() {
   ARTIST_REGISTRY.forEach(a => {
     const canonical = `${BRAND.domain}${a.url}`;
+    const det = artistDetails(a);
+    const kw = `${det.clean} הופעות${det.year ? ' ' + det.year : ''}`;
     const image = (a.shows.find(s => s.image) || {}).image || '';
     const cards = a.shows.map(showCard).join('\n');
     const crumb = breadcrumbSchema([
@@ -1486,17 +1548,19 @@ function buildArtistPages() {
 <article class="hub">
   <div class="wrap">
     <nav class="breadcrumb"><a href="/">בית</a> <span>›</span> <a href="/רשימת-אמנים/">אמנים</a> <span>›</span> <span class="current">${escText(a.name)}</span></nav>
-    <h1 class="hub-title">${escText(a.name)} כרטיסים והופעות</h1>
-    <p class="hub-intro">כל ההופעות והמופעים הקרובים של ${escText(a.name)} בישראל. מועדים, ערים ומחירים מעודכנים, ורכישת כרטיסים מאובטחת במקום אחד.</p>
+    <h1 class="hub-title">${escText(kw)}: כרטיסים ולוח הופעות</h1>
+    ${det.lead ? `<p class="show-lead">${escText(det.lead)}</p>` : ''}
+    <p class="hub-intro">כל ההופעות והמופעים הקרובים של ${escText(det.clean)} בישראל. תאריכים, ערים ומחירים מעודכנים, ורכישת כרטיסים מאובטחת במקום אחד.</p>
     <div class="results-head"><span class="results-count">${a.shows.length} מופעים</span></div>
     ${a.shows.length ? `<div class="grid">\n${cards}\n</div>` : empty}
+    ${det.faqHtml}
   </div>
 </article>`;
     const html = page({
-      title: `${a.name} כרטיסים למופעים והופעות | איידיר כרטיסים`,
-      description: `כל ההופעות והמופעים הקרובים של ${a.name} בישראל. מועדים, מחירים וכרטיסים לרכישה מאובטחת.`,
+      title: `${kw}: כרטיסים ולוח הופעות | איידיר כרטיסים`,
+      description: det.lead ? clipDesc(det.lead) : `כל ההופעות של ${det.clean} בישראל. תאריכים, מחירים וכרטיסים לרכישה מאובטחת.`,
       canonical,
-      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(profile)}</script>` + (image ? `\n<meta property="og:image" content="${esc(image)}">` : ''),
+      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(profile)}</script>` + (det.faqSchema ? `\n<script type="application/ld+json">${JSON.stringify(det.faqSchema)}</script>` : '') + (image ? `\n<meta property="og:image" content="${esc(image)}">` : ''),
       body,
     });
     const dir = path.join(BRAND.outDir, 'artist', a.slug);
@@ -3507,6 +3571,8 @@ span.btn-soldout{cursor:default}
 .hub-empty p{margin:0 0 16px;font-size:17px}
 .hub-empty-links{list-style:none;margin:0;padding:0;display:flex;gap:10px 18px;flex-wrap:wrap;justify-content:center}
 .hub-empty-links a{color:var(--plum);font-weight:700;text-decoration:underline}
+.artist-faq{margin-top:36px;border-top:1px solid var(--line);padding-top:24px}
+.artist-faq h2{font-size:20px;font-weight:800;margin:0 0 14px}
 .artist-list-section{margin-top:40px;border-top:1px solid var(--line);padding-top:26px}
 .artist-list-section h2{font-size:20px;font-weight:800;margin:0 0 16px}
 .artist-list{list-style:none;margin:0;padding:0;columns:3;column-gap:28px}
