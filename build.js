@@ -472,7 +472,7 @@ function siteFooter() {
     <a href="/הופעות-החודש">הופעות החודש</a>
     <a href="/הופעות-2026">הופעות 2026</a>
     <a href="/הופעות-2027">הופעות 2027</a>
-    ${hanukkahSeason() ? `<a href="${HANUKKAH_HUB}">הצגות חנוכה 2026</a>` : ''}
+    ${hanukkahSeason() ? `<a href="${HANUKKAH_HUB}">הצגות חנוכה ${HK.year}</a>` : ''}
   </div>
 
   <div class="footer-bottom wrap">
@@ -1036,7 +1036,7 @@ function kidsIntro(list, lead, seanceOk, noun = ['הצגת ילדים אחת', '
   if (morning) extra.push(`${heCount(morning, 'מועד אחד', 'מועדים')} בבוקר (עד 13:00)`);
   if (sat && !oneDay) extra.push(`${heCount(sat, 'מועד אחד', 'מועדים')} בשבת`);
   if (extra.length) parts.push(`בלוח ${extra.length === 2 ? `${extra[0]} ${heCountP('ו', sat, 'מועד אחד', 'מועדים')} בשבת` : extra[0]}.`);
-  if (hk && hanukkahSeason()) parts.push(`${heCount(hk, 'הצגה אחת עולה', 'הצגות עולות')} בחנוכה, ופרטים נוספים ב<a href="${HANUKKAH_HUB}">מדריך הצגות החנוכה 2026</a>.`);
+  if (hk && hanukkahSeason()) parts.push(`${heCount(hk, 'הצגה אחת עולה', 'הצגות עולות')} בחנוכה, וכולן מרוכזות ב<a href="${HANUKKAH_HUB}">עמוד הצגות חנוכה ${HK.year}</a>.`);
   if (list[0]) parts.push(`ההצגה הקרובה: <a href="${esc(list[0].show._url)}">${escText(heTitle(list[0].show.name))}</a>, ${formatDate(list[0].next)}.`);
   return parts.map(p => `<p class="hub-intro">${p}</p>`).join('\n');
 }
@@ -1145,6 +1145,283 @@ function buildKidsPages(shows) {
 
 function kidsHubLinks() {
   return kidsNavLinks('');
+}
+
+/* ------------------- עמודי חנוכה (מתעדכנים לבד כל שנה) ------------------- */
+// כתובות קבועות בלי שנה (/הצגות-חנוכה/, /הצגות-חנוכה-ב<עיר>/), כדי שהדירוג יישאר לשנה הבאה.
+// תאריכי החג מחושבים מהלוח העברי (כ"ה בכסלו), השנה בכותרת מתחלפת לבד אחרי היום השמיני.
+// הרשימה: כל מופע שיש לו מועד בין ערב החג ליום השמיני, לפי הפיד בלבד.
+const HK_SLUG = 'הצגות-חנוכה';
+const HANUKKAH_HUB = `/${HK_SLUG}/`;
+const HK_MIN_SHOWS = 5;
+const hkCitySlug = c => c.slug.replace(/^הופעות-/, 'הצגות-חנוכה-');
+const HE_DOW = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+const HE_DOW_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+const ymdAdd = (ymd, n) => { const d = new Date(ymd + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const ymdDow = ymd => new Date(ymd + 'T00:00:00Z').getUTCDay();
+const ymdDM = ymd => `${Number(ymd.slice(8, 10))}.${Number(ymd.slice(5, 7))}`;
+// "יום שישי, 4.12"
+const hkDay = ymd => `יום ${HE_DOW[ymdDow(ymd)]}, ${ymdDM(ymd)}`;
+
+// כ"ה בכסלו בשנה הלועזית y (חנוכה תמיד בין סוף נובמבר לסוף דצמבר)
+function hanukkahFirstDay(y) {
+  const f = new Intl.DateTimeFormat('en-u-ca-hebrew', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  for (let d = new Date(Date.UTC(y, 10, 15)); d < Date.UTC(y + 1, 0, 5); d.setUTCDate(d.getUTCDate() + 1)) {
+    const p = Object.fromEntries(f.formatToParts(d).map(x => [x.type, x.value]));
+    if (p.month === 'Kislev' && p.day === '25') return d.toISOString().slice(0, 10);
+  }
+  return null;
+}
+// החג הקרוב שעוד לא הסתיים: ערב החג (הנר הראשון) עד היום השמיני
+function hanukkahInfo(today) {
+  const y0 = Number(today.slice(0, 4));
+  for (const y of [y0 - 1, y0, y0 + 1]) {
+    const first = hanukkahFirstDay(y);
+    if (!first) continue;
+    const last = ymdAdd(first, 7);
+    if (last >= today) return { year: y, eve: ymdAdd(first, -1), first, last };
+  }
+  return null;
+}
+let HK = null;            // מחושב בתחילת הבנייה (run)
+const MAG_HANUKKAH_YEARS = new Set([2026]); // יש כתבת מגזין הצגות-חנוכה-<שנה>
+let HK_INDEXED = new Set();
+let HK_CITY_COUNTS = {};
+// קישורים לחנוכה באתר: מ-75 יום לפני ערב החג ועד היום השמיני
+const hanukkahSeason = () => !!HK && todayIso() >= ymdAdd(HK.eve, -75) && todayIso() <= HK.last;
+
+function hanukkahList(shows, city) {
+  const inWin = x => x.date >= HK.eve && x.date <= HK.last && (!city || x.city === city) && !seanceSoldOut(x);
+  return shows.filter(s => !showSoldOut(s))
+    .map(s => { const win = (s.Seances || []).filter(inWin); return { show: s, win, next: win.map(x => x.date).sort()[0] }; })
+    .filter(x => x.win.length)
+    // הפקות שבראבו תייג כמופעי חנוכה קודם, אחר כך לפי המועד הראשון בחג
+    .sort((a, b) => (isHanukkahShow(b.show) - isHanukkahShow(a.show)) || a.next.localeCompare(b.next));
+}
+
+function hkStats(list) {
+  const days = {}, cities = {};
+  let seances = 0, morning = 0, minP = Infinity;
+  for (const { win } of list) for (const x of win) {
+    seances++;
+    days[x.date] = (days[x.date] || 0) + 1;
+    cities[x.city] = (cities[x.city] || 0) + 1;
+    if (String(x.time) < '13:00') morning++;
+    if (Number(x.priceMin) > 0) minP = Math.min(minP, Number(x.priceMin));
+  }
+  const kids = list.filter(x => isKidsShow(x.show));
+  let kidsMin = Infinity;
+  for (const { win } of kids) for (const x of win) if (Number(x.priceMin) > 0) kidsMin = Math.min(kidsMin, Number(x.priceMin));
+  return { days, cities, seances, morning, minP: isFinite(minP) ? minP : 0, kids: kids.length, kidsMin: isFinite(kidsMin) ? kidsMin : 0 };
+}
+
+// כפתורי ימים: רק ימים שיש בהם מועדים
+function hkDayChips(st) {
+  const ds = Object.keys(st.days).sort();
+  if (ds.length < 2) return '';
+  const chip = d => `<button type="button" class="chip" data-day="${d}">${HE_DOW_SHORT[ymdDow(d)]} ${ymdDM(d)}${d === HK.eve ? ' ערב החג' : ''} (${st.days[d]})</button>`;
+  return `<div class="hk-days" role="group" aria-label="סינון לפי יום">
+      <span class="hk-days-label">לפי יום בחג:</span>
+      <button type="button" class="chip is-active" data-day="">כל הימים</button>
+      ${ds.map(chip).join('\n      ')}
+    </div>`;
+}
+
+function hkGrid(list, id) {
+  const cards = list.map((x, i) => {
+    const days = [...new Set(x.win.map(z => z.date))].join(' ');
+    // הכרטיס מציג את מועדי החג בלבד (לא מועד בנובמבר)
+    return showCard({ ...x.show, Seances: x.win }).replace('<article class="card', `<article data-days="${days}" class="card${i < CITY_FIRST ? '' : ' is-more'}`);
+  }).join('\n');
+  const more = list.length > CITY_FIRST
+    ? `<p class="more-wrap"><button type="button" class="btn btn-primary more-btn hk-more" data-grid="${id}">הצג עוד (${list.length - CITY_FIRST})</button></p>` : '';
+  return `<div class="grid hk-grid" id="${id}">\n${cards}\n</div>\n${more}`;
+}
+
+// "הצג עוד" לכמה רשתות + סינון לפי יום (בסינון מוצגות כל ההתאמות)
+const HK_SCRIPT = `<script>(function(){
+var grids=[].slice.call(document.querySelectorAll('.hk-grid'));
+[].slice.call(document.querySelectorAll('.hk-more')).forEach(function(b){b.addEventListener('click',function(){var g=document.getElementById(b.getAttribute('data-grid'));var h=[].slice.call(g.querySelectorAll('.card.is-more'));h.slice(0,10).forEach(function(c){c.classList.remove('is-more')});var r=h.length-10;if(r<=0)b.parentNode.removeChild(b);else b.textContent='הצג עוד ('+r+')'})});
+var chips=[].slice.call(document.querySelectorAll('.hk-days .chip'));
+chips.forEach(function(ch){ch.addEventListener('click',function(){var d=ch.getAttribute('data-day');chips.forEach(function(c){c.classList.toggle('is-active',c===ch)});
+[].slice.call(document.querySelectorAll('.hk-more')).forEach(function(b){b.parentNode.removeChild(b)});
+grids.forEach(function(g){var n=0;[].slice.call(g.querySelectorAll('.card')).forEach(function(c){c.classList.remove('is-more');var ok=!d||(' '+c.getAttribute('data-days')+' ').indexOf(' '+d+' ')>=0;c.classList.toggle('hk-out',!ok);if(ok)n++});var s=g.closest('.hk-section');if(s)s.classList.toggle('hk-out',!n)})})});
+})();</script>`;
+
+function hkFaqBlock(faq, title) {
+  if (!faq.length) return { html: '', schema: '' };
+  const html = `<section class="artist-faq hk-faq">
+      <h2>${escText(title)}</h2>
+      ${faq.map(f => `<details class="faq-item"><summary>${escText(f.q)}</summary><div class="faq-answer">${escText(f.a)}</div></details>`).join('\n      ')}
+    </section>`;
+  const schema = `<script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: faq.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  })}</script>`;
+  return { html, schema };
+}
+
+function hkItemList(list, name) {
+  if (!list.length) return '';
+  return `<script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org', '@type': 'ItemList', name,
+    itemListElement: list.slice(0, 30).map((x, i) => ({ '@type': 'ListItem', position: i + 1, url: BRAND.domain + encodeURI(x.show._url), name: noDash(x.show.name) })),
+  })}</script>`;
+}
+
+const hkDatesSentence = () =>
+  `חנוכה ${HK.year} מתחיל ב${hkDay(HK.eve)} בערב, עם הדלקת הנר הראשון, והיום השמיני של החג הוא ${hkDay(HK.last)}.`;
+
+function hkWritePage({ slug, title, h1, desc, crumbs, bodyInner, head, indexed }) {
+  const canonical = `${BRAND.domain}/${slug}/`;
+  const crumb = breadcrumbSchema([{ name: 'בית', url: BRAND.domain + '/' }, ...crumbs, { name: h1, url: canonical }]);
+  const nav = [`<a href="/">בית</a>`, ...crumbs.map(c => `<a href="${esc(c.url.replace(BRAND.domain, ''))}">${escText(c.name)}</a>`), `<span class="current">${escText(h1)}</span>`].join(' <span>›</span> ');
+  const body = `
+<article class="hub hk-page">
+  <div class="wrap">
+    <nav class="breadcrumb">${nav}</nav>
+    <h1 class="hub-title">${escText(h1)}</h1>
+${bodyInner}
+  </div>
+</article>
+${HK_SCRIPT}`;
+  const dir = path.join(BRAND.outDir, slug);
+  ensureDir(dir);
+  fs.writeFileSync(path.join(dir, 'index.html'), page({ title, description: desc, canonical, head: crumb + head + (indexed ? '' : '\n<meta name="robots" content="noindex, follow">'), body }), 'utf8');
+  if (indexed) HK_INDEXED.add(slug);
+}
+
+function hkCityLinks(currentSlug) {
+  const cities = CITY_PAGES.filter(c => HK_INDEXED.has(hkCitySlug(c)) && hkCitySlug(c) !== currentSlug)
+    .map(c => `<a href="/${hkCitySlug(c)}/">${escText(c.name)} (${HK_CITY_COUNTS[hkCitySlug(c)]})</a>`);
+  return cities.length ? `<p class="landing-related">הצגות חנוכה לפי עיר: ${cities.join(' · ')}</p>` : '';
+}
+
+function buildHanukkahPages(shows) {
+  HK_INDEXED = new Set();
+  HK_CITY_COUNTS = {};
+  if (!HK) return { all: 0, cities: 0 };
+  const all = hanukkahList(shows);
+  const st = hkStats(all);
+  const kidsList_ = all.filter(x => isKidsShow(x.show));
+  const restList = all.filter(x => !isKidsShow(x.show));
+  const y = HK.year;
+  const hkCrumb = { name: `הצגות חנוכה ${y}`, url: BRAND.domain + HANUKKAH_HUB };
+
+  // מספרים לעמודי הערים קודם, כדי שהעמוד הראשי יקשר רק לערים מעל הסף
+  const perCity = CITY_PAGES.map(cfg => ({ cfg, list: hanukkahList(shows, cfg.city) }));
+  perCity.forEach(o => { HK_CITY_COUNTS[hkCitySlug(o.cfg)] = o.list.length; if (o.list.length >= HK_MIN_SHOWS) HK_INDEXED.add(hkCitySlug(o.cfg)); });
+
+  const magUrl = `/magazine/${encodeURI(`הצגות-חנוכה-${y}`)}/`;
+  const hasMag = MAG_HANUKKAH_YEARS.has(y);
+  const topCities = Object.entries(st.cities).sort((a, b) => b[1] - a[1]).slice(0, 6)
+    .map(([c, k]) => { const cfg = cityByName[c]; const s = cfg && hkCitySlug(cfg); return s && HK_INDEXED.has(s) ? `<a href="/${s}/">${escText(heProse(cfg.name))}</a> (${k})` : `${escText(heProse(c))} (${k})`; });
+
+  // ---- העמוד הראשי ----
+  let inner;
+  const faq = [];
+  if (all.length) {
+    const intro = [
+      hkDatesSentence(),
+      `בימי החג יש בלוח ההופעות ${heCount(all.length, 'מופע אחד', 'הצגות ומופעים')} ${heCountP('ב', st.seances, 'מועד אחד', 'מועדים')}` +
+        (st.kids ? `, מתוכם ${heCount(st.kids, 'הצגת ילדים אחת', 'הצגות ילדים')}.` : '.'),
+      topCities.length ? `הערים עם הכי הרבה מועדים בחג: ${topCities.join(', ')}.` : '',
+      st.morning ? `${heCount(st.morning, 'מועד אחד', 'מועדים')} מתחילים בבוקר, עד 13:00.` : '',
+      hasMag ? `המלצות וטיפים לחג יש ב<a href="${magUrl}">מדריך הצגות חנוכה ${y}</a> במגזין.` : '',
+    ].filter(Boolean);
+    inner = `    ${intro.map(p => `<p class="hub-intro">${p}</p>`).join('\n    ')}
+    ${hkDayChips(st)}
+    ${kidsList_.length ? `<section class="hk-section">
+      <h2 class="section-title">הצגות ילדים בחנוכה ${y} <span class="results-count">(${kidsList_.length})</span></h2>
+      ${hkGrid(kidsList_, 'hk-kids')}
+    </section>` : ''}
+    ${restList.length ? `<section class="hk-section">
+      <h2 class="section-title">עוד הצגות והופעות בחנוכה ${y} <span class="results-count">(${restList.length})</span></h2>
+      ${hkGrid(restList, 'hk-rest')}
+    </section>` : ''}
+    ${hkCityLinks('')}`;
+    faq.push({ q: `מתי חנוכה ${y}?`, a: hkDatesSentence() });
+    faq.push({ q: `כמה הצגות ומופעים יש בחנוכה ${y}?`, a: `בלוח ההופעות יש ${heCount(all.length, 'מופע אחד', 'הצגות ומופעים')} בימי החג, ${heCountP('ב', st.seances, 'מועד אחד', 'מועדים')}${st.kids ? `. מתוכם ${heCount(st.kids, 'הצגת ילדים אחת', 'הצגות ילדים')}` : ''}. הרשימה מתעדכנת אוטומטית מלוח ההופעות.` });
+    const topPlain = Object.entries(st.cities).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([c, k]) => `${heProse(cityByName[c] ? cityByName[c].name : c)} (${heCount(k, 'מועד אחד', 'מועדים')})`);
+    if (topPlain.length) faq.push({ q: `באילו ערים יש הצגות חנוכה?`, a: `הערים עם הכי הרבה מועדים בחג: ${topPlain.join(', ')}. יש מופעים גם בערים נוספות.` });
+    const busy = Object.entries(st.days).sort((a, b) => b[1] - a[1])[0];
+    if (busy) faq.push({ q: `באיזה יום בחנוכה יש הכי הרבה הצגות?`, a: `${hkDay(busy[0])}, עם ${heCount(busy[1], 'מועד אחד', 'מועדים')}.` });
+    if (st.kidsMin) faq.push({ q: `כמה עולים כרטיסים להצגות ילדים בחנוכה?`, a: `לפי לוח ההופעות, המחיר להצגות הילדים בחג מתחיל ב-${st.kidsMin} ₪. המחיר של כל מועד מופיע בעמוד ההצגה ובעמוד הרכישה.` });
+    if (st.morning) faq.push({ q: `יש הצגות חנוכה בבוקר?`, a: `כן. ${heCount(st.morning, 'מועד אחד', 'מועדים')} בימי החג מתחילים עד 13:00.` });
+    faq.push({ q: `איך מקבלים את הכרטיסים?`, a: `בוחרים הצגה ומועד ולוחצים על כפתור הרכישה. הרכישה מאובטחת, והכרטיסים נשלחים בדיגיטל.` });
+  } else {
+    // בין העונות: עדיין אין מועדים לחג הבא בלוח
+    const upcoming = kidsList(shows, x => x.date >= todayIso()).slice(0, 10);
+    inner = `    <p class="hub-intro">${hkDatesSentence()}</p>
+    <p class="hub-intro">הצגות ומופעי החנוכה של ${y} יופיעו כאן ברגע שיעלו ללוח ההופעות. בינתיים, הצגות הילדים הקרובות:</p>
+    ${upcoming.length ? `<div class="grid">\n${upcoming.map(x => showCard(x.show)).join('\n')}\n</div>` : hubEmpty()}
+    <p class="landing-related"><a href="/${encodeURI(categorySlug('הצגות ילדים'))}/">לכל הצגות הילדים ›</a></p>`;
+    faq.push({ q: `מתי חנוכה ${y}?`, a: hkDatesSentence() });
+  }
+  const f = hkFaqBlock(faq, `שאלות נפוצות על חנוכה ${y}`);
+  hkWritePage({
+    slug: HK_SLUG,
+    title: `הצגות חנוכה ${y} | הצגות ילדים ומופעים בחנוכה, כרטיסים | ${BRAND.nameHe}`,
+    h1: `הצגות חנוכה ${y}: הצגות ילדים ומופעים לכל המשפחה`,
+    desc: all.length
+      ? `הצגות חנוכה ${y}: ${heCount(all.length, 'מופע אחד', 'הצגות ומופעים')} בימי החג, ${st.kids} הצגות ילדים, לפי יום ועיר. מועדים, אולמות ומחירים.`
+      : `הצגות ומופעי חנוכה ${y}: תאריכי החג, ולוח ההצגות שמתעדכן כשהמופעים עולים.`,
+    crumbs: [],
+    bodyInner: inner + '\n    ' + f.html,
+    head: '\n' + hkItemList(all, `הצגות חנוכה ${y}`) + f.schema,
+    indexed: true,
+  });
+
+  // ---- עמודי ערים: נבנים לכל עיר (בלי 404 בשנה הבאה), באינדקס רק מעל הסף ----
+  perCity.forEach(({ cfg, list }) => {
+    const slug = hkCitySlug(cfg);
+    const indexed = list.length >= HK_MIN_SHOWS;
+    const cst = hkStats(list);
+    const ok = x => x.city === cfg.city && x.date >= HK.eve && x.date <= HK.last;
+    const kidsN = cst.kids;
+    const cfaq = [];
+    let cinner;
+    if (list.length) {
+      const intro = [
+        hkDatesSentence(),
+        `בימי החג יש ${cfg.inForm} ${heCount(list.length, 'מופע אחד', 'הצגות ומופעים')} ${heCountP('ב', cst.seances, 'מועד אחד', 'מועדים')}` +
+          (kidsN ? `, מתוכם ${heCount(kidsN, 'הצגת ילדים אחת', 'הצגות ילדים')}.` : '.'),
+        `המופעים מתקיימים` + hallSummary(list, ok),
+        cst.morning ? `${heCount(cst.morning, 'מועד אחד', 'מועדים')} מתחילים בבוקר, עד 13:00.` : '',
+      ].filter(Boolean);
+      cinner = `    ${intro.map(p => `<p class="hub-intro">${p}</p>`).join('\n    ')}
+    ${hkDayChips(cst)}
+    <section class="hk-section">
+      <div class="results-head"><span class="results-count">${heCount(list.length, 'מופע אחד', 'מופעים')}</span></div>
+      ${hkGrid(list, 'hk-city')}
+    </section>`;
+      cfaq.push({ q: `אילו הצגות חנוכה יש ${cfg.inForm}?`, a: `בחנוכה ${y} יש ${cfg.inForm} ${heCount(list.length, 'מופע אחד', 'הצגות ומופעים')}. הקרובים: ${list.slice(0, 4).map(x => `${heTitle(x.show.name)} (${hkDay(x.next)})`).join(', ')}.` });
+      if (cst.minP) cfaq.push({ q: `כמה עולים כרטיסים להצגות חנוכה ${cfg.inForm}?`, a: `לפי לוח ההופעות, המחיר בימי החג ${cfg.inForm} מתחיל ב-${cst.minP} ₪.` });
+    } else {
+      cinner = `    <p class="hub-intro">${hkDatesSentence()}</p>
+    <p class="landing-empty">עדיין אין בלוח הצגות חנוכה ${escText(cfg.inForm)}. הנה הצגות החנוכה בכל הארץ:</p>
+    ${all.length ? `<div class="grid">\n${all.slice(0, 10).map(x => showCard(x.show)).join('\n')}\n</div>` : hubEmpty()}`;
+    }
+    const cf = hkFaqBlock(cfaq, `שאלות נפוצות: חנוכה ${cfg.inForm}`);
+    const links = [
+      `<p class="landing-related"><a href="${HANUKKAH_HUB}">כל הצגות חנוכה ${y} בארץ ›</a> · <a href="/${cfg.slug}/">כל האירועים ${escText(cfg.inForm)} ›</a>` +
+        (KIDS_INDEXED.has(kidsSlug(cfg)) ? ` · <a href="/${kidsSlug(cfg)}/">הצגות ילדים ${escText(cfg.inForm)} ›</a>` : '') + `</p>`,
+      hkCityLinks(slug),
+    ].join('\n    ');
+    hkWritePage({
+      slug,
+      title: `הצגות חנוכה ${cfg.inForm} ${y} | הצגות ילדים ומופעים | ${BRAND.nameHe}`,
+      h1: `הצגות ומופעי חנוכה ${cfg.inForm}`,
+      desc: list.length
+        ? `הצגות חנוכה ${cfg.inForm} ${y}: ${heCount(list.length, 'מופע אחד', 'הצגות ומופעים')} בימי החג. מועדים, אולמות ומחירים.`
+        : `הצגות ומופעי חנוכה ${cfg.inForm} ${y}: הלוח מתעדכן כשהמופעים עולים.`,
+      crumbs: [hkCrumb],
+      bodyInner: cinner + '\n    ' + links + '\n    ' + cf.html,
+      head: '\n' + hkItemList(list, `הצגות חנוכה ${cfg.inForm}`) + cf.schema,
+      indexed,
+    });
+  });
+  return { all: all.length, kids: st.kids, seances: st.seances, cities: HK_INDEXED.size - 1 };
 }
 
 // ===================== עמודי ז'אנר (Genre Hubs) =====================
@@ -1858,7 +2135,7 @@ ${median ? `<li><strong>מחירים:</strong> מחיר הכרטיס הזול ב
 </ul>`;
   const hk = shows.filter(x => (x.filters || []).some(f => f && f.folder === 'hanukkah')).length;
   const intro = `<p class="mag-lead">בלוח יש כרגע ${kids.length} הצגות ומופעים לילדים ב-${cities.length} ערים ויישובים ברחבי הארץ. ריכזנו אותם לפי סוג המופע, כדי שיהיה קל למצוא את מה שמתאים לילדים שלכם: הצגות תיאטרון, מיני אופרות, מחזות זמר, מחול, שעת סיפור ועוד.</p>
-<p>הנתונים בעמוד מתעדכנים אוטומטית מלוח ההופעות, כך שהמועדים והמחירים תמיד עדכניים.${hk ? ` מחפשים משהו לחג? יש לנו <a href="${HANUKKAH_HUB}">מדריך נפרד להצגות חנוכה 2026</a> עם ${hk} הצגות.` : ''}</p>`;
+<p>הנתונים בעמוד מתעדכנים אוטומטית מלוח ההופעות, כך שהמועדים והמחירים תמיד עדכניים.${hk ? ` מחפשים משהו לחג? יש לנו <a href="${HANUKKAH_HUB}">עמוד נפרד להצגות חנוכה</a>.` : ''}</p>`;
   const outro = `<p>לכל הצגות הילדים בלוח, כולל סינון לפי עיר ותאריך, היכנסו ל<a href="/kids/">עמוד הצגות הילדים</a>. לבילוי הקרוב, ראו גם את <a href="/magazine/${encodeURI('הצגות-ילדים-ומופעים-לסוף-השבוע')}/">הצגות הילדים לסוף השבוע</a>.</p>`;
   return {
     slug: 'הצגות-ילדים-המדריך-המלא',
@@ -2329,7 +2606,8 @@ function hanukkah2026Article(shows) {
   if (!picks.length) return null;
   // CTA ייעודי לעמוד הנחיתה: "להזמנת כרטיסים" (רק כאן, לא משנה את showCard הגלובלי)
   const grid = `<div class="grid">\n${picks.map(showCard).join('\n').replace(/לפרטים וכרטיסים/g, 'להזמנת כרטיסים')}\n</div>`;
-  const bodyHtml = `${(() => { const cities = new Set(picks.flatMap(x => (x.Seances || []).map(z => z.city)).filter(Boolean)).size; const minP = Math.min(...picks.map(x => Number(x.priceMin)).filter(n => n > 0)); return `<p class="mag-lead">ריכזנו כאן את כל ההצגות והמופעים שמסומנים בלוח ההופעות כמופעי חנוכה 2026: ${picks.length} הפקות, עם מועדים, אולמות ומחירים שמתעדכנים אוטומטית מלוח ההופעות.${isFinite(minP) ? ` מחירי הכרטיסים מתחילים ב-${minP} ש"ח.` : ''}</p>`; })()}
+  const bodyHtml = `<p class="hanukkah-hub-link"><a href="${HANUKKAH_HUB}">כל הצגות חנוכה 2026 לפי יום ועיר, בעמוד אחד ›</a></p>
+${(() => { const cities = new Set(picks.flatMap(x => (x.Seances || []).map(z => z.city)).filter(Boolean)).size; const minP = Math.min(...picks.map(x => Number(x.priceMin)).filter(n => n > 0)); return `<p class="mag-lead">ריכזנו כאן את כל ההצגות והמופעים שמסומנים בלוח ההופעות כמופעי חנוכה 2026: ${picks.length} הפקות, עם מועדים, אולמות ומחירים שמתעדכנים אוטומטית מלוח ההופעות.${isFinite(minP) ? ` מחירי הכרטיסים מתחילים ב-${minP} ש"ח.` : ''}</p>`; })()}
 <p>להרבה הפקות יש כמה מועדים ובכמה ערים, ובעמוד של כל הצגה אפשר לראות את כולם ולבחור את הנוח לכם. ההזמנה עצמה מתבצעת בעמוד ההזמנה המאובטח של בראבו.</p>
 <p><strong>טיפ:</strong> אם יש לכם תאריך ושעה מועדפים, כדאי להזמין מוקדם: כך יש יותר מקומות לבחור מהם. לפני ההזמנה בדקו בעמוד ההצגה אם יש מגבלת גיל. עוד הצגות לכל השנה תמצאו ב<a href="/magazine/${encodeURI('הצגות-ילדים-המדריך-המלא')}/">מדריך הצגות הילדים המלא</a>.</p>
 ${grid}`;
@@ -2934,8 +3212,6 @@ function eventSchema(show) {
 
 // קישורים פנימיים בעונת חנוכה: כל עמוד של הצגת חנוכה מקשר למדריך ולהצגות חנוכה נוספות
 let HANUKKAH_SHOWS = [];
-const HANUKKAH_HUB = '/magazine/' + encodeURI('הצגות-חנוכה-2026') + '/';
-const hanukkahSeason = () => ymdStr(israelToday()) <= '2026-12-13';
 const isHanukkahShow = s => (s.filters || []).some(f => f && f.folder === 'hanukkah');
 function hanukkahLinksSection(show) {
   if (!hanukkahSeason() || !isHanukkahShow(show)) return '';
@@ -2946,11 +3222,11 @@ function hanukkahLinksSection(show) {
     .slice(0, 6).map(x => x.s);
   if (!others.length) return '';
   return `<section class="wrap related hanukkah-more">
-    <h2 class="section-title">עוד הצגות ומופעים לחנוכה 2026</h2>
+    <h2 class="section-title">עוד הצגות ומופעים לחנוכה ${HK.year}</h2>
     <div class="grid">
 ${others.map(showCard).join('\n')}
     </div>
-    <p class="hanukkah-hub-link"><a href="${HANUKKAH_HUB}">כל הצגות חנוכה 2026 במדריך אחד ›</a></p>
+    <p class="hanukkah-hub-link"><a href="${HANUKKAH_HUB}">כל הצגות חנוכה ${HK.year} לפי יום ועיר ›</a></p>
   </section>`;
 }
 
@@ -3171,6 +3447,7 @@ function buildSitemap(shows) {
     ...HUB_PAGES.map(p => ({ loc: `${BRAND.domain}/${p.slug}`, pri: '0.9' })),
     ...CITY_PAGES.filter(p => CITY_INDEXED.has(p.slug)).map(p => ({ loc: `${BRAND.domain}/${p.slug}/`, pri: '0.9' })),
     ...[...KIDS_INDEXED].map(slug => ({ loc: `${BRAND.domain}/${slug}/`, pri: '0.8' })),
+    ...[...HK_INDEXED].map(slug => ({ loc: `${BRAND.domain}/${slug}/`, pri: slug === HK_SLUG ? '0.9' : '0.8' })),
     ...GENRE_PAGES.map(p => ({ loc: `${BRAND.domain}${p.url}`, pri: '0.8' })),
     { loc: `${BRAND.domain}/רשימת-אמנים/`, pri: '0.7' },
     ...ARTIST_REGISTRY.map(a => ({ loc: `${BRAND.domain}${encodeURI(a.url)}`, pri: '0.7' })),
@@ -3412,6 +3689,12 @@ img{max-width:100%;display:block}
 .hanukkah-hub-link{margin-top:16px;font-weight:700;text-align:center}
 .related{margin-bottom:34px;padding-bottom:30px;border-bottom:1px solid var(--line)}
 .card.is-more{display:none}
+.hk-days{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0 6px}
+.hk-days-label{font-weight:700;margin-inline-end:4px}
+.card.hk-out,.hk-section.hk-out{display:none!important}
+.hk-section{margin-top:26px}
+.hk-section .section-title .results-count{font-size:.8em;font-weight:400}
+.hk-faq{margin-top:34px}
 .more-wrap{text-align:center;margin:22px 0 8px}
 .related .section-title{margin-bottom:16px}
 .filters-toggle,.filters-done{display:none}
@@ -4071,6 +4354,7 @@ function run() {
   const t0 = Date.now();
   console.log('· טוען shows.json…');
   const shows = loadShows();
+  HK = hanukkahInfo(todayIso()); // תאריכי החנוכה הקרוב (משמש בכל העמודים)
   const scope = BRAND.limit > 0 ? `${shows.length} מופעים (מגבלת פיילוט)` : `${shows.length} מופעים (מלא)`;
   console.log(`· לעיבוד: ${scope}`);
   assignShowUrls(shows);
@@ -4098,6 +4382,8 @@ function run() {
   buildStaticPages(shows);
   const hubCounts = buildHubPages(shows);
   const kidsCounts = buildKidsPages(shows); // לפני הערים: עמוד עיר מקשר לעמוד הילדים שלה
+  const hkCounts = buildHanukkahPages(shows); // אחרי הילדים (מקשר לעמודי הילדים), לפני הערים
+  console.log(`· עמודי חנוכה ${HK ? HK.year : ''}: ${hkCounts.all} מופעים, ${hkCounts.kids} לילדים, ${hkCounts.seances} מועדים, ${hkCounts.cities} ערים באינדקס`);
   const cityCounts = buildCityPages(shows);
   console.log(`· עמודי ילדים: ערים ${kidsCounts.cities}, היום ${kidsCounts.today}, מחר ${kidsCounts.tomorrow}, שבת ${kidsCounts.saturday}, פעוטות ${kidsCounts.toddlers}`);
   const genreCount = buildGenrePages(shows);
