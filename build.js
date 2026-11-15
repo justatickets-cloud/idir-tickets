@@ -935,6 +935,41 @@ function cardsWithMore(list) {
   return { html: `<div class="grid" id="results">\n${cards}\n</div>\n${more}`, more };
 }
 
+// שאלות נפוצות לעמודי ז'אנר ועיר: הכול מחושב מהפיד (מועדים עתידיים שלא אזלו)
+// where: { inForm } לעיר, או { cat } לז'אנר. התשובות טקסט נקי, זהה לסכמה.
+function hubFaq(shows, seanceOk, where) {
+  const t = todayIso();
+  let seances = 0, minP = Infinity; const halls = {}, dows = {}; let nShows = 0;
+  for (const s of shows) {
+    let any = false;
+    for (const x of s.Seances || []) {
+      if (x.date < t || !seanceOk(x)) continue;
+      any = true;
+      if (seanceSoldOut(x)) continue;
+      seances++;
+      const h = noDash(x.hall || ''); if (h) halls[h] = (halls[h] || 0) + 1;
+      const d = ymdDow(x.date); dows[d] = (dows[d] || 0) + 1;
+      if (Number(x.priceMin) > 0) minP = Math.min(minP, Number(x.priceMin));
+    }
+    if (any) nShows++;
+  }
+  if (!nShows) return [];
+  const where_ = where.inForm ? where.inForm : `בקטגוריית ${where.cat}`;
+  const faq = [];
+  faq.push({ q: where.inForm ? `כמה הופעות והצגות יש ${where.inForm}?` : `כמה מופעים יש בקטגוריית ${where.cat}?`,
+    a: `בלוח ההופעות יש כרגע ${where_} ${heCount(nShows, 'הפקה אחת', 'הפקות')} ${heCountP('ב', seances, 'מועד אחד', 'מועדים')} קרובים. הרשימה מתעדכנת אוטומטית מלוח ההופעות של בראבו.` });
+  if (isFinite(minP)) faq.push({ q: where.inForm ? `כמה עולים כרטיסים להופעות ${where.inForm}?` : `כמה עולים כרטיסים בקטגוריית ${where.cat}?`,
+    a: `לפי לוח ההופעות, המחירים ${where_} מתחילים ב-${minP} ₪. המחיר של כל מועד מופיע בעמוד המופע, והוא המחיר במערכת הכרטוס של בראבו.` });
+  const hn = Object.keys(halls).sort((a, b) => halls[b] - halls[a]);
+  if (hn.length) faq.push({ q: where.inForm ? `באילו אולמות מתקיימים המופעים ${where.inForm}?` : `באילו אולמות מתקיימים המופעים בקטגוריית ${where.cat}?`,
+    a: hn.length === 1 ? `המופעים ${where_} מתקיימים ב${heProse(hn[0])}.`
+      : `המופעים ${where_} מתקיימים ${heCountP('ב', hn.length, 'אולם אחד', 'אולמות')}. הכי הרבה מועדים יש ב${hn.slice(0, 4).map(heProse).join(', ')}${hn.length > 4 ? ' ועוד' : ''}.` });
+  const bd = Object.entries(dows).sort((a, b) => b[1] - a[1])[0];
+  if (bd && seances >= 3) faq.push({ q: where.inForm ? `באיזה יום בשבוע יש הכי הרבה הופעות ${where.inForm}?` : `באיזה יום בשבוע יש הכי הרבה מופעים בקטגוריית ${where.cat}?`,
+    a: `ביום ${HE_DOW[bd[0]]}: ${heCount(bd[1], 'מועד אחד', 'מועדים')} מתוך ${seances} המועדים הקרובים ${where_}.` });
+  faq.push({ q: 'איך מקבלים את הכרטיסים?', a: 'בוחרים מופע ומועד ולוחצים על כפתור ההזמנה, שמעביר לעמוד הרכישה המאובטח של בראבו. המחירים הם המחירים במערכת בראבו, והכרטיסים הדיגיטליים נשלחים למייל לאחר התשלום.' });
+  return faq;
+}
 function buildCityPages(shows) {
   const results = {};
   CITY_INDEXED = new Set();
@@ -951,6 +986,7 @@ function buildCityPages(shows) {
     const { html: grid, more } = list.length ? cardsWithMore(list) : { html: '', more: '' };
     const desc = `הופעות והצגות ${cfg.inForm}: ${heCount(list.length, 'אירוע אחד', 'אירועים')} עם מועדים, אולמות ומחירים. כרטיסים אונליין.`;
     const kidsN = KIDS_CITY_COUNTS[kidsSlug(cfg)] || 0;
+    const cf = hkFaqBlock(hubFaq(list.map(x => x.show), x => x.city === cfg.city, { inForm: cfg.inForm }), `שאלות נפוצות: הופעות ${cfg.inForm}`);
 
     const body = `
 <article class="hub">
@@ -964,12 +1000,13 @@ function buildCityPages(shows) {
     ${list.length ? grid : hubEmpty()}
     ${nearLinks(cfg)}
     ${kidsN >= KIDS_MIN_SHOWS ? `<p class="landing-related">לילדים ${escText(cfg.inForm)}: <a href="/${kidsSlug(cfg)}/">הצגות ילדים (${kidsN}) ›</a></p>` : ''}
+    ${cf.html}
   </div>
 </article>
 ${list.length ? HUB_STICKY : ''}
 ${more ? MORE_BTN_SCRIPT : ''}`;
 
-    const head = crumb + (indexed ? '' : '\n<meta name="robots" content="noindex, follow">');
+    const head = crumb + cf.schema + (indexed ? '' : '\n<meta name="robots" content="noindex, follow">');
     const html = page({ title: cfg.title, description: desc, canonical, head, body });
     const dir = path.join(BRAND.outDir, cfg.slug);
     ensureDir(dir);
@@ -1354,7 +1391,7 @@ function buildHanukkahPages(shows) {
     if (busy) faq.push({ q: `באיזה יום בחנוכה יש הכי הרבה הצגות?`, a: `${hkDay(busy[0])}, עם ${heCount(busy[1], 'מועד אחד', 'מועדים')}.` });
     if (st.kidsMin) faq.push({ q: `כמה עולים כרטיסים להצגות ילדים בחנוכה?`, a: `לפי לוח ההופעות, המחיר להצגות הילדים בחג מתחיל ב-${st.kidsMin} ₪. המחיר של כל מועד מופיע בעמוד ההצגה ובעמוד הרכישה.` });
     if (st.morning) faq.push({ q: `יש הצגות חנוכה בבוקר?`, a: `כן. ${heCount(st.morning, 'מועד אחד', 'מועדים')} בימי החג מתחילים עד 13:00.` });
-    faq.push({ q: `איך מקבלים את הכרטיסים?`, a: `בוחרים הצגה ומועד ולוחצים על כפתור הרכישה. הרכישה מאובטחת, והכרטיסים נשלחים בדיגיטל.` });
+    faq.push({ q: `איך מקבלים את הכרטיסים?`, a: `בוחרים הצגה ומועד ולוחצים על כפתור הרכישה. הרכישה מאובטחת, והכרטיסים הדיגיטליים נשלחים למייל.` });
   } else {
     // בין העונות: עדיין אין מועדים לחג הבא בלוח
     const upcoming = kidsList(shows, x => x.date >= todayIso()).slice(0, 10);
@@ -1606,7 +1643,8 @@ function buildGenrePages(shows) {
     const url = `/${slug}/`;
     const canonical = BRAND.domain + url;
     const h1 = `${section}: כרטיסים ומופעים בישראל`;
-    const title = `${section} - כרטיסים ומופעים 2026 | איידיר כרטיסים`;
+    const title = `${section}: כרטיסים ומופעים 2026 | איידיר כרטיסים`;
+    const gf = hkFaqBlock(hubFaq(list, () => true, { cat: SEC_PROSE[section] || section }), `שאלות נפוצות: ${SEC_PROSE[section] || section}`);
     const desc = `כל המופעים מסוג ${section} המתקיימים בישראל במקום אחד. מועדים, אולמות, מחירים וכרטיסים לרכישה מאובטחת.`;
     const aiLede = `בעמוד זה מרוכזים ${list.length} מופעים מסוג ${section} המתקיימים בישראל, כולל מועדים, אולמות ומחירים. ניתן להזמין כרטיסים לכל המופעים ישירות מהעמוד.`;
     const cards = list.map(showCard).join('\n');
@@ -1625,12 +1663,13 @@ function buildGenrePages(shows) {
     <div class="results-head"><span class="results-count">${list.length} מופעים</span></div>
     <div class="grid" id="results">\n${cards}\n</div>
     ${slug === 'kids' ? kidsHubLinks() : ''}
+    ${gf.html}
   </div>
 </article>
 ${HUB_STICKY}`;
     const html = page({
       title, description: desc, canonical,
-      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(collection)}</script>`,
+      head: crumb + `\n<script type="application/ld+json">${JSON.stringify(collection)}</script>` + gf.schema,
       body,
     });
     const dir = path.join(BRAND.outDir, slug);
@@ -1795,7 +1834,7 @@ function artistDetails(a) {
   }
   if (priceTxt) faq.push({ q: `כמה עולה כרטיס ${toL(clean)}?`, a: `מחיר כרטיס: ${priceTxt}. המחיר הסופי והמקומות הפנויים מוצגים בעמוד הרכישה.` });
   faq.push({ q: `איך קונים כרטיסים ${toL(clean)}?`,
-    a: `בוחרים הופעה ברשימה בעמוד הזה ולוחצים על כפתור הרכישה. הרכישה מאובטחת, והכרטיסים נשלחים בדיגיטל.` });
+    a: `בוחרים הופעה ברשימה בעמוד הזה ולוחצים על כפתור הרכישה. הרכישה מאובטחת, והכרטיסים הדיגיטליים נשלחים למייל.` });
 
   const faqHtml = `<section class="artist-faq">
       <h2>שאלות נפוצות על ההופעות של ${escText(clean)}</h2>
