@@ -3625,8 +3625,7 @@ function buildRedirects(shows) {
   const lines = [];
   for (const s of shows) {
     const dest = encodeURI(s._url);
-    lines.push(`/shows/${s.id} ${dest} 301`);        // הצורה הנקייה
-    lines.push(`/shows/${s.id}.html ${dest} 301`);   // הצורה עם .html
+    lines.push(`/shows/${s.id} ${dest} 301`);        // הצורה הנקייה (שורות ה-.html הוסרו 16.11 לבקשת יוסי, כדי לפנות מקום למופעים שהסתיימו)
   }
   // הפניות 301 מכתבות מגזין שהסלאג שלהן שונה (מאנגלית לעברית)
   for (const m of MAGAZINE_REDIRECTS) {
