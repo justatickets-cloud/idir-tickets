@@ -3335,13 +3335,15 @@ function loadEndedShows(liveShows) {
 // מופע שהסתיים בלי תוכן ייחודי, כשאותה הפקה עדיין בלוח במועדים אחרים (למשל אותה הצגה בתיאטרון אחר):
 // עמוד "הסתיים" שמפנה להפקות החיות, ל-90 יום. כל השאר מקבלים הפניה לקטגוריה.
 const showBaseName = n => String(n || '').split(/ - | – | — |:/)[0].trim();
+// תחילית כללית (שנה, חג, פסטיבל) היא לא אותה הפקה: "חנוכה 2026: סינדרלה" ו"חנוכה 2026: מיני מאוס"
+const GENERIC_BASE = /\d{4}|חנוכה|סוכות|פסח|פסטיבל|Ханука|Суккот|Песах|Фестивал/i;
 function loadSiblingEnded(liveShows) {
   let past = {};
   try { past = JSON.parse(fs.readFileSync(path.join(__dirname, 'content', 'archive', 'past-shows.json'), 'utf8')); } catch (e) { return []; }
   const live = new Set(liveShows.map(x => String(x.id)));
   const liveUrls = new Set(liveShows.map(x => x._url));
   const byBase = {};
-  for (const s of liveShows) { const b = showBaseName(s.name); if (b.split(' ').filter(Boolean).length >= 2 && !showSoldOut(s)) (byBase[b] = byBase[b] || []).push(s); }
+  for (const s of liveShows) { const b = showBaseName(s.name); if (b.split(' ').filter(Boolean).length >= 2 && !GENERIC_BASE.test(b) && !showSoldOut(s)) (byBase[b] = byBase[b] || []).push(s); }
   const today = new Date();
   const out = Object.entries(past)
     .filter(([id, p]) => !live.has(id) && !ENDED_KEPT_IDS.has(id) && p.name && byBase[showBaseName(p.name)] && (today - new Date(p.lastSeen)) / 864e5 <= ENDED_KEEP_DAYS)
