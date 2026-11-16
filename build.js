@@ -3332,6 +3332,54 @@ function loadEndedShows(liveShows) {
   assignShowUrls(ended);
   return ended;
 }
+// מופע שהסתיים בלי תוכן ייחודי, כשאותה הפקה עדיין בלוח במועדים אחרים (למשל אותה הצגה בתיאטרון אחר):
+// עמוד "הסתיים" שמפנה להפקות החיות, ל-90 יום. כל השאר מקבלים הפניה לקטגוריה.
+const showBaseName = n => String(n || '').split(/ - | – | — |:/)[0].trim();
+function loadSiblingEnded(liveShows) {
+  let past = {};
+  try { past = JSON.parse(fs.readFileSync(path.join(__dirname, 'content', 'archive', 'past-shows.json'), 'utf8')); } catch (e) { return []; }
+  const live = new Set(liveShows.map(x => String(x.id)));
+  const liveUrls = new Set(liveShows.map(x => x._url));
+  const byBase = {};
+  for (const s of liveShows) { const b = showBaseName(s.name); if (b.split(' ').filter(Boolean).length >= 2 && !showSoldOut(s)) (byBase[b] = byBase[b] || []).push(s); }
+  const today = new Date();
+  const out = Object.entries(past)
+    .filter(([id, p]) => !live.has(id) && !ENDED_KEPT_IDS.has(id) && p.name && byBase[showBaseName(p.name)] && (today - new Date(p.lastSeen)) / 864e5 <= ENDED_KEEP_DAYS)
+    .map(([id, p]) => ({ id, name: p.name, section: p.section, Seances: [] }));
+  normalizeShows(out);
+  assignShowUrls(out);
+  return out.filter(s => !liveUrls.has(s._url)).map(s => Object.assign(s, { _siblings: byBase[showBaseName(s.name)] }));
+}
+function buildSiblingEnded(list) {
+  for (const show of list) {
+    const base = showBaseName(show.name);
+    const sibs = show._siblings.slice().sort((a, b) => String(a.dateFrom || '').localeCompare(String(b.dateFrom || ''))).slice(0, 6);
+    const nm = dashToComma(show.name);
+    const body = `
+<nav class="breadcrumb wrap">
+  <a href="/">בית</a> <span>›</span> <a href="/${categorySlug(show.section)}/">${escText(show.section)}</a> <span>›</span> <span class="current">${escText(nm)}</span>
+</nav>
+<article class="show-page show-ended">
+  <section class="wrap show-hero">
+    <div class="show-hero-body">
+      <h1>${escText(nm)}</h1>
+      <div class="ended-notice"><strong>המועדים של ההפקה הזו הסתיימו</strong><p>בלוח ההופעות יש עוד מועדים קרובים של ${escText(base)}:</p></div>
+    </div>
+  </section>
+  <section class="wrap related related-shows">
+    <h2 class="section-title">${escText(base)}: מועדים שאפשר להזמין עכשיו</h2>
+    <div class="grid">
+${sibs.map(showCard).join('\n')}
+    </div>
+    <p class="hanukkah-hub-link"><a href="/${encodeURI(categorySlug(show.section))}/">לכל המופעים בקטגוריה ›</a></p>
+  </section>
+</article>`;
+    const html = page({ title: `${nm} | ההופעות הסתיימו`, description: `המועדים של ${nm} הסתיימו. בלוח ההופעות יש עוד מועדים קרובים של ${base}, עם קישור להזמנה.`.slice(0, 160), canonical: `${BRAND.domain}${show._url}`, body });
+    const dir = path.join(BRAND.outDir, ...show._dir.split('/'));
+    ensureDir(dir);
+    fs.writeFileSync(path.join(dir, 'index.html'), html, 'utf8');
+  }
+}
 function buildEndedShows(ended) {
   for (const show of ended) {
     const e = ENRICHMENTS[String(show.id)];
@@ -3648,8 +3696,22 @@ function buildRedirects(shows) {
   // אתר המאמרים הישן של idir (2007 עד 2014): עשרות אלפי כתובות /articles/... עם קישורים חיצוניים. 301 לדף הבית במקום 404
   lines.push('/articles/* / 301');
   lines.push('/articlerss* / 301');
+  const fixed = lines.slice();
   lines.push(...endedRedirectLines(shows, 1950 - lines.length));
   fs.writeFileSync(path.join(BRAND.outDir, '_redirects'), lines.join('\n') + '\n', 'utf8');
+  // אותן הפניות, בלי מגבלת 2000, לרשת הביטחון ב-functions/_middleware.js (נקראת רק כשיש 404)
+  const map = {};
+  for (const l of [...fixed, ...endedRedirectLines(shows, Infinity)]) {
+    const [from, to, code] = l.split(' ');
+    if (!from || from.includes('*')) continue;
+    let k; try { k = decodeURI(from); } catch (e) { continue; }
+    if (!map[k]) map[k] = [to, Number(code) || 301];
+  }
+  ensureDir(path.join(BRAND.outDir, 'data'));
+  fs.writeFileSync(path.join(BRAND.outDir, 'data', 'redirects-map.json'), JSON.stringify(map), 'utf8');
+  // הפונקציה רצה רק על עמודים, לא על קבצי עיצוב, תמונות ונתונים
+  fs.writeFileSync(path.join(BRAND.outDir, '_routes.json'), JSON.stringify({ version: 1, include: ['/*'], exclude: ['/assets/*', '/data/*', '/_redirects', '/robots.txt', '/sitemap.xml', '/ads.txt', '/llms.txt'] }), 'utf8');
+  console.log(`· מפת הפניות לרשת הביטחון: ${Object.keys(map).length}`);
 }
 
 /* ------------------------------ נכסים (CSS/JS) ------------------------- */
@@ -4430,6 +4492,10 @@ function run() {
   ENDED_KEPT_IDS = new Set(endedShows.map(x => String(x.id)));
   buildEndedShows(endedShows);
   console.log(`· עמודי "הסתיים" עם תוכן ייחודי: ${endedShows.length}`);
+  const siblingEnded = loadSiblingEnded(shows);
+  siblingEnded.forEach(x => ENDED_KEPT_IDS.add(String(x.id)));
+  buildSiblingEnded(siblingEnded);
+  console.log(`· עמודי "הסתיים" של הפקות שממשיכות: ${siblingEnded.length}`);
   buildIndex(shows);
   buildStaticPages(shows);
   const hubCounts = buildHubPages(shows);
