@@ -4182,36 +4182,31 @@ html.a11y-contrast-high .card-badge,html.a11y-contrast-high .pill{background:#ff
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
 }`;
 
-// עמודים סטטיים נבנים פעם ביום: הסקריפט מוריד מועדים שכבר התחילו (נטען בכל עמוד, לפני app.js)
+// עמודים סטטיים נבנים פעם ביום: מועד שכבר התחיל מסומן "אזלו הכרטיסים" בלי כפתור הזמנה פעיל (נטען בכל עמוד, לפני app.js)
 const LIVE_JS = `(function(){
-  // מועדים שכבר התחילו: בלי כפתור הזמנה, וכרטיס שכל המועדים שלו עברו יורד מהעמוד
   try{
     var nowIL=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Jerusalem'}).replace(' ','T').slice(0,16);
+    var SOLD='<span class="soldout">אזלו הכרטיסים</span>';
+    // שורת מועד בעמוד מופע
     [].forEach.call(document.querySelectorAll('tr[data-start]'),function(tr){
       var st=tr.getAttribute('data-start');
       if(st && st<nowIL){
         var td=tr.querySelector('td[data-th="הזמנה"]');
-        if(td) td.innerHTML='<span class="soldout">המועד עבר</span>';
-        tr.className+=' is-past';
+        if(td) td.innerHTML=SOLD;
       }
     });
-    // בעמודי "היום" בודקים רק את המועדים של היום: כרטיס שכל המועדים שלו היום כבר התחילו יורד
+    // כרטיס מופע: בעמודי "היום" נבדקים רק המועדים של היום, ובשאר העמודים כל המועדים
     var pth=''; try{pth=decodeURIComponent(location.pathname);}catch(e){}
     var todayOnly=pth.indexOf('היום')>-1 && pth.indexOf('השבוע')<0, todayIL=nowIL.slice(0,10);
-    var grids=[];
     [].forEach.call(document.querySelectorAll('.card[data-starts]'),function(c){
       var st=(c.getAttribute('data-starts')||'').split(',').filter(Boolean);
       if(todayOnly) st=st.filter(function(x){return x.slice(0,10)===todayIL;});
       if(st.length && st.every(function(x){return x<nowIL;})){
-        if(grids.indexOf(c.parentNode)<0) grids.push(c.parentNode);
-        c.parentNode.removeChild(c);
+        c.className+=' is-soldout';
+        var pr=c.querySelector('.card-price'); if(pr) pr.innerHTML=SOLD;
+        var b=c.querySelector('.card-foot .btn');
+        if(b){ var s=document.createElement('span'); s.className='btn btn-soldout'; s.setAttribute('aria-disabled','true'); s.textContent='אזלו הכרטיסים'; b.parentNode.replaceChild(s,b); }
       }
-    });
-    var lc=document.querySelector('.landing-count strong');
-    grids.forEach(function(g){
-      var k=g.querySelectorAll('.card').length;
-      if(lc) lc.textContent=k;
-      if(!k) g.innerHTML='<p class="landing-empty">כל ההופעות שתוכננו להיום כבר התחילו. ההופעות הקרובות מחכות ב<a href="/">לוח ההופעות המלא</a>.</p>';
     });
   }catch(e){}
 })();
