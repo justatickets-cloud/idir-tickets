@@ -4198,7 +4198,7 @@ const LIVE_JS = `(function(){
     });
     // כרטיס מופע: בעמודי "היום" נבדקים רק המועדים של היום, ובשאר העמודים כל המועדים
     var pth=''; try{pth=decodeURIComponent(location.pathname);}catch(e){}
-    var todayOnly=pth.indexOf('היום')>-1 && pth.indexOf('השבוע')<0, todayIL=nowIL.slice(0,10);
+    var todayOnly=pth.indexOf('היום')>-1 && pth.indexOf('השבוע')<0, todayIL=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Jerusalem'}).slice(0,10);
     [].forEach.call(document.querySelectorAll('.card[data-starts]'),function(c){
       var st=(c.getAttribute('data-starts')||'').split(',').filter(Boolean);
       if(todayOnly) st=st.filter(function(x){return x.slice(0,10)===todayIL;});
