@@ -53,6 +53,8 @@ export async function onRequest(ctx) {
     if (hit) return redirect(url.origin, hit[0], hit[1], url.search);
   }
   if (/^\/articles(\/|rss)/.test(p) || p.startsWith('/articlerss')) return redirect(url.origin, '/', 301);
+  // כתובות בפורמט של הקופה (/notice?id=...) שמגיעות מ-ChatGPT
+  if (/^\/notice(\/|$)/.test(p)) return redirect(url.origin, '/', 301);
 
   // 2. .html שלא נמצא: הכתובת הנקייה, אם היא קיימת
   if (noHtml !== p && await exists(ctx, url.origin, noHtml.replace(/\/?$/, '/'))) {
