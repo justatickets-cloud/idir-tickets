@@ -4185,7 +4185,8 @@ html.a11y-contrast-high .card-badge,html.a11y-contrast-high .pill{background:#ff
 // עמודים סטטיים נבנים פעם ביום: מועד שכבר התחיל מסומן "אזלו הכרטיסים" בלי כפתור הזמנה פעיל (נטען בכל עמוד, לפני app.js)
 const LIVE_JS = `(function(){
   try{
-    var nowIL=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Jerusalem'}).replace(' ','T').slice(0,16);
+    // ההזמנה נסגרת שעה לפני תחילת ההופעה (שעון ישראל)
+    var nowIL=new Date(Date.now()+3600000).toLocaleString('sv-SE',{timeZone:'Asia/Jerusalem'}).replace(' ','T').slice(0,16);
     var SOLD='<span class="soldout">אזלו הכרטיסים</span>';
     // שורת מועד בעמוד מופע
     [].forEach.call(document.querySelectorAll('tr[data-start]'),function(tr){
