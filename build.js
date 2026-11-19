@@ -240,7 +240,7 @@ function loadShows() {
 const ASSET_VERSIONS = {};
 function assetUrl(name) {
   if (!ASSET_VERSIONS[name]) {
-    const src = { 'styles.css': STYLES, 'app.js': APP_JS, 'accessibility.js': A11Y_JS }[name];
+    const src = { 'styles.css': STYLES, 'app.js': APP_JS, 'accessibility.js': A11Y_JS, 'live.js': LIVE_JS }[name];
     ASSET_VERSIONS[name] = require('crypto').createHash('md5').update(src).digest('hex').slice(0, 8);
   }
   return `/assets/${name}?v=${ASSET_VERSIONS[name]}`;
@@ -385,6 +385,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 ${siteHeader(alt)}
 <div id="content" tabindex="-1"></div>
 ${body}
+<script src="${assetUrl('live.js')}"></script>
 ${siteFooter()}
 ${a11yWidget()}
 <script src="${assetUrl('accessibility.js')}" defer></script>
@@ -521,6 +522,11 @@ function a11yWidget() {
 }
 
 /* --------------------------- כרטיס מופע (גריד) -------------------------- */
+// מועד התחלה של הופעה, "YYYY-MM-DDTHH:MM" לפי שעון ישראל. בלי שעה: סוף היום.
+function seanceStart(s) {
+  const m = /^(\d{2}):(\d{2})/.exec(String(s.time || ''));
+  return s.date ? `${s.date}T${m ? m[1] + ':' + m[2] : '23:59'}` : '';
+}
 function showCard(show) {
   const cities = [...new Set((show.Seances || []).map(s => s.city).filter(Boolean))];
   const cityText = cities.slice(0, 2).join(' · ') + (cities.length > 2 ? ' ועוד' : '');
@@ -534,7 +540,8 @@ function showCard(show) {
     data-city="${esc(cities.join('|'))}"
     data-venue="${esc(halls.join('|'))}"
     data-date-from="${esc(show.dateFrom || dates[0] || '')}"
-    data-dates="${esc(dates.join(','))}">
+    data-dates="${esc(dates.join(','))}"
+    data-starts="${esc((show.Seances || []).map(seanceStart).filter(Boolean).join(','))}">
     <a class="card-media" href="${esc(show._url)}" aria-label="${esc(show.name)}">
       <img loading="lazy" src="${esc(show.image)}" alt="${esc(show.name)}">
       <span class="card-badge">${escText(show.section)}</span>
@@ -3173,7 +3180,7 @@ function build404(indexBody) {
 
 /* ----------------------------- דף מופע בודד ---------------------------- */
 function seanceRow(show, s) {
-  return `<tr>
+  return `<tr data-start="${esc(seanceStart(s))}">
     <td data-th="תאריך">${formatDate(s.date)}</td>
     <td data-th="שעה">${formatTime(s.time)}</td>
     <td data-th="עיר">${escText(s.city)}</td>
@@ -3723,6 +3730,7 @@ function buildAssets() {
   fs.writeFileSync(path.join(outAssets, 'styles.css'), STYLES, 'utf8');
   fs.writeFileSync(path.join(outAssets, 'app.js'), APP_JS, 'utf8');
   fs.writeFileSync(path.join(outAssets, 'accessibility.js'), A11Y_JS, 'utf8');
+  fs.writeFileSync(path.join(outAssets, 'live.js'), LIVE_JS, 'utf8');
   // העתקת קבצים סטטיים מתיקיית המקור assets/ (לוגו וכו')
   const srcAssets = path.join(__dirname, 'assets');
   if (fs.existsSync(srcAssets)) {
@@ -4173,6 +4181,41 @@ html.a11y-contrast-high .card-badge,html.a11y-contrast-high .pill{background:#ff
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
 }`;
+
+// עמודים סטטיים נבנים פעם ביום: הסקריפט מוריד מועדים שכבר התחילו (נטען בכל עמוד, לפני app.js)
+const LIVE_JS = `(function(){
+  // מועדים שכבר התחילו: בלי כפתור הזמנה, וכרטיס שכל המועדים שלו עברו יורד מהעמוד
+  try{
+    var nowIL=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Jerusalem'}).replace(' ','T').slice(0,16);
+    [].forEach.call(document.querySelectorAll('tr[data-start]'),function(tr){
+      var st=tr.getAttribute('data-start');
+      if(st && st<nowIL){
+        var td=tr.querySelector('td[data-th="הזמנה"]');
+        if(td) td.innerHTML='<span class="soldout">המועד עבר</span>';
+        tr.className+=' is-past';
+      }
+    });
+    // בעמודי "היום" בודקים רק את המועדים של היום: כרטיס שכל המועדים שלו היום כבר התחילו יורד
+    var pth=''; try{pth=decodeURIComponent(location.pathname);}catch(e){}
+    var todayOnly=pth.indexOf('היום')>-1 && pth.indexOf('השבוע')<0, todayIL=nowIL.slice(0,10);
+    var grids=[];
+    [].forEach.call(document.querySelectorAll('.card[data-starts]'),function(c){
+      var st=(c.getAttribute('data-starts')||'').split(',').filter(Boolean);
+      if(todayOnly) st=st.filter(function(x){return x.slice(0,10)===todayIL;});
+      if(st.length && st.every(function(x){return x<nowIL;})){
+        if(grids.indexOf(c.parentNode)<0) grids.push(c.parentNode);
+        c.parentNode.removeChild(c);
+      }
+    });
+    var lc=document.querySelector('.landing-count strong');
+    grids.forEach(function(g){
+      var k=g.querySelectorAll('.card').length;
+      if(lc) lc.textContent=k;
+      if(!k) g.innerHTML='<p class="landing-empty">כל ההופעות שתוכננו להיום כבר התחילו. ההופעות הקרובות מחכות ב<a href="/">לוח ההופעות המלא</a>.</p>';
+    });
+  }catch(e){}
+})();
+`;
 
 const APP_JS = `(function(){
   var grid=document.getElementById('grid');
