@@ -2038,12 +2038,42 @@ function mdToHtml(md) {
 }
 
 // טעינת כתבות ידניות מ-content/magazine/*.md
-function loadMdArticles() {
+// בלוק "בקרוב בלוח" לכתבות נצחיות: מתעדכן בכל בנייה מהפיד, כך שהכתבה לא מתיישנת.
+// frontmatter: related: section=הופעות מחול ובלט,מחזמר; name=נרות|מחווה; desc=קומדיה; folder=purim
+//              more: /dance-ballet/   (קישור לכל המופעים בנושא)
+function relatedBlock(meta, shows) {
+  if (!meta.related) return '';
+  const r = {};
+  meta.related.split(';').forEach(p => { const i = p.indexOf('='); if (i > 0) r[p.slice(0, i).trim()] = p.slice(i + 1).trim(); });
+  const secs = r.section ? r.section.split(',').map(x => x.trim()) : null;
+  const nameRe = r.name ? new RegExp(r.name) : null;
+  const descRe = r.desc ? new RegExp(r.desc) : null;
+  const today = ymdStr(israelToday());
+  const hits = (shows || []).filter(s => {
+    if (!s._url) return false;
+    const inSec = secs && secs.includes(s.section), inName = nameRe && nameRe.test(s.name);
+    if ((secs || nameRe) && !inSec && !inName) return false;
+    if (descRe && !descRe.test(s.name + ' ' + stripTags(s.description || ''))) return false;
+    if (r.folder && !(s.filters || []).some(f => f && f.folder === r.folder)) return false;
+    return (s.Seances || []).some(z => z.date >= today && !seanceSoldOut(z));
+  }).map(s => ({ s, next: (s.Seances || []).filter(z => z.date >= today && !seanceSoldOut(z)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)) }))
+    .sort((a, b) => a.next[0].date.localeCompare(b.next[0].date)).slice(0, 10);
+  const more = meta.more ? `<p><a href="${esc(meta.more)}">לכל המופעים בנושא בלוח ההופעות ›</a></p>` : '';
+  if (!hits.length) return `<h2>בקרוב בלוח</h2><p>כרגע אין בלוח מופעים קרובים בנושא הזה. הלוח מתעדכן כל יום.</p>${more}`;
+  const items = hits.map(({ s, next }) => {
+    const z = next[0];
+    const extra = next.length > 1 ? ` · ועוד ${next.length - 1} מועדים` : '';
+    return `<li><a href="${esc(s._url)}"><strong>${escText(s.name)}</strong></a> · ${formatDate(z.date)}${z.city ? ', ' + escText(z.city) : ''}${z.hall ? ' · ' + escText(z.hall) : ''}${extra}</li>`;
+  }).join('\n');
+  return `<h2>בקרוב בלוח</h2><p>המופעים הקרובים בנושא, לפי התאריך הקרוב. הרשימה מתעדכנת כל יום.</p><ul>${items}</ul>${more}`;
+}
+
+function loadMdArticles(shows) {
   const dir = path.join(__dirname, 'content', 'magazine');
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter(f => f.endsWith('.md')).map(f => {
     const { meta, body } = parseFrontmatter(fs.readFileSync(path.join(dir, f), 'utf8'));
-    const bodyHtml = mdToHtml(body);
+    const bodyHtml = mdToHtml(body) + relatedBlock(meta, shows);
     return {
       slug: meta.slug || slugify(meta.title || f.replace(/\.md$/, '')),
       title: meta.title || 'ללא כותרת',
@@ -2704,7 +2734,7 @@ ${grid}`;
 }
 
 function buildMagazine(shows) {
-  const mdArticles = loadMdArticles();
+  const mdArticles = loadMdArticles(shows);
   const generated = [hanukkah2026Article(shows), sukkot2026Article(shows), weekendArticle(shows), familyWeekendArticle(shows), kidsShowsGuide(shows), ...GUIDES_2027.map(g => guide2027Article(shows, g)), venuesSeatingGuide(), festivals2027Article(shows), mustSee2027Article(shows), faqArticle()].filter(Boolean);
   const genSlugs = new Set(generated.map(a => a.slug));
   let articles = [...generated, ...mdArticles.filter(a => !genSlugs.has(a.slug))];
